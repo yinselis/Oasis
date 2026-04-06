@@ -4816,12 +4816,14 @@ const bgImgUrlVal = await getDB('bgImageUrl', '');
                 <div id="fetchModelMsg" style="font-size: 12px; font-weight: bold; margin-top: 6px;"></div>
             </div>
             <div style="background: var(--neo-bg); border: var(--border-width) solid var(--line-color); padding: 16px; border-radius: 16px; box-shadow: 4px 4px 0px var(--line-color); margin-bottom: 20px;">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
-        <div style="font-size: 16px; font-weight: 900;">模型温度 (Temperature)</div>
+    <div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="const t=document.getElementById('tempSettingArea'); t.style.display=t.style.display==='none'?'block':'none';">
+        <div style="font-size: 16px; font-weight: 900;">模型温度 (Temperature) ▼</div>
         <div id="tempDisplay" style="font-size: 18px; font-weight: 900; color: var(--color-pink);">${aiTemp}</div>
     </div>
-    <div style="font-size: 12px; font-weight: bold; opacity: 0.6; margin-bottom: 16px; line-height: 1.5;">决定AI回复的随机性和发散程度。数值越高思维越跳跃，越低越严谨稳定。推荐 0.7 - 1.0 之间。</div>
-    <input type="range" id="cfgAiTemp" min="0.0" max="2.0" step="0.1" value="${aiTemp}" style="width: 100%; accent-color: var(--line-color);" oninput="document.getElementById('tempDisplay').innerText = this.value">
+    <div id="tempSettingArea" style="display:none; margin-top: 12px; border-top: 2px dashed rgba(0,0,0,0.1); padding-top: 12px;">
+        <div style="font-size: 12px; font-weight: bold; opacity: 0.6; margin-bottom: 16px; line-height: 1.5;">决定AI回复的随机性和发散程度。数值越高思维越跳跃，越低越严谨稳定。推荐 0.7 - 1.0 之间。</div>
+        <input type="range" id="cfgAiTemp" min="0.0" max="2.0" step="0.1" value="${aiTemp}" style="width: 100%; accent-color: var(--line-color);" oninput="document.getElementById('tempDisplay').innerText = this.value">
+    </div>
 </div>
             <div style="display:flex; flex-direction:column; gap:12px;">
     <button class="form-btn" id="saveApiBtn" style="width: 100%; background: var(--color-green);" onclick="saveApiSettings()">保存网络配置</button>
@@ -4832,6 +4834,8 @@ const bgImgUrlVal = await getDB('bgImageUrl', '');
         导入备份文件
         <input type="file" id="backupImportInput" accept=".json,application/json" style="display:none;" onchange="importBackupData(event)">
     </label>
+    
+    <button class="form-btn" style="width: 100%; background: #e74c3c; color: #fff; border-color: #c0392b; box-shadow: 3px 3px 0 #c0392b; margin-top: 20px;" onclick="clearAllAppSystemData()">清空所有数据 (恢复出厂)</button>
 </div>
         `;
     } else if (appId === '日记') {
@@ -11343,15 +11347,25 @@ if (visibleMsgs.length > 0) {
                 <input type="number" id="walkXPostPrice" class="form-input" placeholder="例如：50" value="50" style="border-color:var(--color-pink); box-shadow:inset 2px 2px 0px rgba(0,0,0,0.05), 0 0 0 1px var(--color-pink); font-weight:900;">
             </div>
 
-            <!-- 自定义选择器：附加媒体 -->
-            <div class="form-group">
-                <label style="font-size:13px; opacity:0.8;">附加媒体</label>
-                <div class="form-input" style="display:flex; justify-content:space-between; align-items:center; cursor:pointer; background:var(--neo-bg);" onclick="openCustomSelect('walkXMediaType', 'media')">
-                    <span id="walkXMediaType_label" style="font-weight:bold;">无媒体</span>
-                    <svg viewBox="0 0 24 24" style="width:16px; height:16px; fill:none; stroke:var(--text-main); stroke-width:2.5;"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                </div>
-                <input type="hidden" id="walkXMediaType" value="none">
-            </div>
+<!-- 自定义选择器：附加媒体 -->
+<div class="form-group">
+    <label style="font-size:13px; opacity:0.8;">附加媒体</label>
+    <div class="form-input" style="display:flex; justify-content:space-between; align-items:center; cursor:pointer; background:var(--neo-bg);" onclick="openCustomSelect('walkXMediaType', 'media')">
+        <span id="walkXMediaType_label" style="font-weight:bold;">无媒体</span>
+        <svg viewBox="0 0 24 24" style="width:16px; height:16px; fill:none; stroke:var(--text-main); stroke-width:2.5;"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    </div>
+    <input type="hidden" id="walkXMediaType" value="none">
+</div>
+
+<!-- 自定义选择器：发小广告 -->
+<div class="form-group">
+    <label style="font-size:13px; color:var(--color-pink); font-weight:900;">黑产引流 (发小广告)</label>
+    <div class="form-input" style="display:flex; justify-content:space-between; align-items:center; cursor:pointer; background:var(--neo-bg);" onclick="openCustomSelect('walkXPostAdType', 'ad')">
+        <span id="walkXPostAdType_label" style="font-weight:bold; color:var(--text-main);">不发广告 (正常做人)</span>
+        <svg viewBox="0 0 24 24" style="width:16px; height:16px; fill:none; stroke:var(--text-main); stroke-width:2.5;"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    </div>
+    <input type="hidden" id="walkXPostAdType" value="none">
+</div>
 
             <div id="walkXMediaFields" style="display:none; animation: fadeIn 0.3s; padding: 14px; background:var(--bg-color); border:2px dashed var(--line-color); border-radius:16px; margin-bottom:12px;">
                 <div class="form-group">
@@ -11435,11 +11449,11 @@ let preview = safeMsg ? escapeEchoText(safeMsg.length > 20 ? safeMsg.substring(0
             `;
         });
     } else if (type === 'media') {
-        const opts = [
-            {val: 'none', label: '无媒体'},
-            {val: 'image', label: '图片'},
-            {val: 'video', label: '视频'}
-        ];
+    const opts = [
+        {val: 'none', label: '无媒体'},
+        {val: 'image', label: '图片'},
+        {val: 'video', label: '视频'}
+    ];
     opts.forEach(opt => {
         optionsHtml += `
             <div style="padding:20px; border-bottom:2px dashed rgba(0,0,0,0.1); cursor:pointer; font-weight:900; font-size:16px; background: var(--bg-color);" onclick="selectCustomOption('${inputId}', '${opt.val}', '${opt.label}')">
@@ -11447,7 +11461,20 @@ let preview = safeMsg ? escapeEchoText(safeMsg.length > 20 ? safeMsg.substring(0
             </div>
         `;
     });
-    } else if (type === 'appIcon') {
+} else if (type === 'ad') {
+    const opts = [
+        {val: 'none', label: '不发广告 (正常做人)'},
+        {val: 'yellow', label: '🔥 卖片/福利空降广告'},
+        {val: 'scam', label: '💸 赌博/带单杀猪盘广告'}
+    ];
+    opts.forEach(opt => {
+        optionsHtml += `
+            <div style="padding:20px; border-bottom:2px dashed rgba(0,0,0,0.1); cursor:pointer; font-weight:900; font-size:16px; background: var(--bg-color);" onclick="selectCustomOption('${inputId}', '${opt.val}', '${opt.label}')">
+                ${opt.label}
+            </div>
+        `;
+    });
+} else if (type === 'appIcon') {
         const opts = [
             {val: 'widget-badge', label: '📻 情绪电台 (小组件)'},
             {val: 'p1-home', label: '赴约'},
@@ -11531,7 +11558,7 @@ function toggleWalkXMediaFields() {
 }
 
 async function submitWalkXPost() {
-    const content = document.getElementById('walkXPostContent').value.trim();
+    let content = document.getElementById('walkXPostContent').value.trim();
     const mediaType = document.getElementById('walkXMediaType').value;
     const mediaTitle = document.getElementById('walkXMediaTitle')?.value.trim() || '';
     const mediaDesc = document.getElementById('walkXMediaDesc')?.value.trim() || '';
@@ -11543,10 +11570,18 @@ if (atHandle) content = content + `\n@${atHandle.replace('@', '')}`; // 自动�
 const privacy = document.getElementById('walkXPostPrivacy')?.value || 'public';
 const lockType = document.getElementById('walkXPostLock')?.value || 'none';
 const price = parseInt(document.getElementById('walkXPostPrice')?.value) || 50;
+const adType = document.getElementById('walkXPostAdType')?.value || 'none';
 
-    if (!content) {
+    if (!content && adType === 'none') {
         alert('正文不能为空');
         return;
+    }
+    
+    // 自动在文末强行植入小广告
+    if (adType === 'yellow') {
+        content += '\n\n🔞【内部汁源/门槛群/同城空降，懂的＋主页V：vip_6969】🔞';
+    } else if (adType === 'scam') {
+        content += '\n\n💸【内部漏洞/稳赚不赔/导师带单，＋V：get_rich88 免费上车】💸';
     }
 
     const myProfile = await getDB('walk_x_my_profile', {
@@ -11594,13 +11629,114 @@ const price = parseInt(document.getElementById('walkXPostPrice')?.value) || 50;
 
     await setDB('walk_x_posts', posts);
     document.getElementById('walkXCreateModal')?.remove();
-await scheduleWalkXPostReplies(posts[0].id, 15000 + Math.floor(Math.random() * 30000));
 
-    maybeWalkXGainFansByPost(content);
+    if (adType !== 'none') {
+        // 如果发了广告，遭到反噬！
+        processWalkXPostAdConsequences(posts[0].id, adType);
+    } else {
+        await scheduleWalkXPostReplies(posts[0].id, 15000 + Math.floor(Math.random() * 30000));
+        maybeWalkXGainFansByPost(content);
+    }
     
-    // 【修改点】发完帖子后，直接强制跳转到“我的”页面查看自己的战绩
-    document.getElementById('walkXCreateModal')?.remove();
     await switchWalkXTab('me');
+}
+
+// 专属惩罚引擎：处理发小广告的后果（无声掉粉、API 真实网暴）
+async function processWalkXPostAdConsequences(postId, adType) {
+    let fans = await getDB('walk_x_fans', []);
+    let lostCount = 0;
+    if (fans.length > 0) {
+        lostCount = Math.min(fans.length, Math.floor(Math.random() * 5) + 2); // 随机掉 2~6 个粉
+        fans.splice(0, lostCount);
+        await setDB('walk_x_fans', fans);
+    }
+
+    let posts = await getDB('walk_x_posts', []);
+    let post = posts.find(p => p.id === postId);
+    if (!post) return;
+    
+    if (!post.commentList) post.commentList = [];
+
+    // 调用 API 生成极度真实的沉浸式网暴评论
+    const apiUrl = await getDB('apiUrl');
+    const apiKey = await getDB('apiKey');
+    const model = await getDB('aiModel');
+
+    let oldCommentCount = post.commentList.length;
+
+    if (apiUrl && apiKey && model) {
+        try {
+            const prompt = `你是一个模拟X(推特)平台环境的系统。用户刚刚发布了一条${adType === 'yellow' ? '搞黄色、卖片、拉门槛群' : '搞杀猪盘、博彩带单'}的垃圾黑灰产广告。
+请生成 2 到 4 条真实路人的评论，对这种发垃圾广告的行为进行强烈的辱骂、嘲讽、抵制。
+要求：
+1. 语气极度口语化，充满活人感，符合网暴和极度反感垃圾广告的情绪。
+2. 不要带任何emoji。
+3. 严格返回合法的 JSON 数组，格式如下：
+[
+  {"name": "网名", "content": "评论内容"}
+]
+绝对不要输出 Markdown 代码块。`;
+
+            const endpoint = apiUrl.replace(/\/+$/, '') + (apiUrl.includes('/v1') ? '/chat/completions' : '/v1/chat/completions');
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                body: JSON.stringify({ model, messages: [{ role: 'system', content: prompt }], temperature: 0.85 })
+            });
+            const data = await res.json();
+            if (data.choices && data.choices[0]) {
+                let raw = data.choices[0].message.content.trim().replace(/```json/gi, '').replace(/```/g, '').replace(/[\u{1F600}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '');
+                let newComments = [];
+                try {
+                    const match = raw.match(/\[[\s\S]*\]/);
+                    if (match) newComments = JSON.parse(match[0]);
+                    else newComments = JSON.parse(raw);
+                } catch(e) {}
+
+                if (Array.isArray(newComments) && newComments.length > 0) {
+                    newComments.forEach((c, i) => {
+                        post.commentList.push({
+                            id: Date.now() + i,
+                            authorId: 'npc_angry_' + Date.now() + '_' + i,
+                            authorName: c.name || '反诈先锋',
+                            content: c.content || '死骗子滚啊！',
+                            timestamp: Date.now() + 1000 + i * 2000
+                        });
+                    });
+                }
+            }
+        } catch(e) {}
+    }
+
+    // 如果 API 失败或者没拿到数据，断网兜底
+    if (post.commentList.length === oldCommentCount) {
+        const angryComments = [
+            '死骗子滚啊！',
+            '天天发广告，想钱想疯了吧，已拉黑。',
+            '别在这丢人现眼了行吗？恶心。',
+            '已举报，别发了烦死了。',
+            '有没有人管管啊，卖片狗滚出首页！'
+        ];
+        const commentCount = Math.floor(Math.random() * 3) + 2; 
+        for (let i = 0; i < commentCount; i++) {
+            post.commentList.push({
+                id: Date.now() + i,
+                authorId: 'npc_angry_' + Date.now() + '_' + i,
+                authorName: ['暴躁路人', '反诈先锋', '无语', '路人甲'][Math.floor(Math.random()*4)],
+                content: angryComments[Math.floor(Math.random() * angryComments.length)],
+                timestamp: Date.now() + 1000 + i * 2000
+            });
+        }
+    }
+
+    post.comments = post.commentList.length;
+    await setDB('walk_x_posts', posts);
+    
+    // 静默点亮消息小红点，不弹窗，让你自己去发现被骂了
+    let unread = await getDB('walk_x_comment_unread', 0);
+    unread += (post.commentList.length - oldCommentCount);
+    await setDB('walk_x_comment_unread', unread);
+    await updateWalkXCommentUnreadBadge();
 }
 
 async function deleteWalkXPost(postId) {
@@ -12918,7 +13054,8 @@ async function generateWalkXChatReplyList(authorId, userText) {
 或
 [视频] 标题\\n描述内容
 7. 【打钱与代付】：如果用户发来【待支付账单】，决定是否代付。同意则输出 [[PAY_BILL:账单上的场地名称:账单上的详细描述]]。如果你想主动给用户打钱送钱，输出 [[TRANSFER:金额]]。警告：[[TRANSFER:金额]] 代表你把你的钱白白送给用户，如果你是想要用户给你钱，千万不要输出这个标记！
-8. 【终端好友判定】：收到 [[CYB_ID:xxx]] 邀请时，同意则输出 [[ADD_CYB_FRIEND:对方的CYB_ID]]。
+8. 【终端好友判定】：收到 [[CYB_ID:xxx]] 邀请时，如果你决定同意，请输出 [[ADD_CYB_FRIEND:对方的CYB_ID]]。
+【严重警告】：一旦你输出了这个同意标记，系统会立刻加上好友！所以你的对话台词【必须】顺应“已经加上了”的事实（例如“我已经加你了”、“通过了”）。如果你确实想刁难她、让她求你，那就【绝对不要】输出这个同意标记！
 9. 【气泡切分与翻译死命令】：绝对不要使用 JSON！必须严格按照以下纯文本格式输出：
 - 每个独立的气泡之间必须用 === 分隔。
 - 如果你是中国人角色，直接写出纯中文回复，例如：
@@ -12965,17 +13102,17 @@ async function generateWalkXChatReplyList(authorId, userText) {
                     raw = raw.replace(/\[\[TRANSFER:\d+\]\]/g, '');
                 }
                 if (raw.includes('[[PAY_BILL:')) {
-                    const payMatch = raw.match(/\[\[PAY_BILL:(.*?):([\s\S]*?)\]\]/);
-                    if (payMatch) {
-                        extractedPayBill = `[约会邀约] ${payMatch[1]}\n${payMatch[2]}\n我已经付完款了。`;
-                        let tempChatsDb = await getDB('date_temp_chats', {});
-                        if (tempChatsDb[authorId]) {
-                            tempChatsDb[authorId].messages.push({ id: Date.now(), role: 'npc', content: extractedPayBill, timestamp: Date.now() });
-                            await setDB('date_temp_chats', tempChatsDb);
-                        }
-                    }
-                    raw = raw.replace(/\[\[PAY_BILL:.*?:[\s\S]*?\]\]/g, '');
-                }
+    const payMatch = raw.match(/\[\[PAY_BILL:([^\]:]+)(?::([^\]]*))?\]\]/);
+    if (payMatch) {
+        extractedPayBill = `[已买单] ${payMatch[1].trim()}\n${(payMatch[2]||'').trim()}\n✅ 我已经买好单了，去房间等我。`;
+        let tempChatsDb = await getDB('date_temp_chats', {});
+        if (tempChatsDb[npcId]) {
+            tempChatsDb[npcId].messages.push({ id: Date.now(), role: 'npc', content: extractedPayBill, timestamp: Date.now() });
+            await setDB('date_temp_chats', tempChatsDb);
+        }
+    }
+    raw = raw.replace(/\[\[PAY_BILL:[^\]]+\]\]/g, '');
+}
 
                 if (raw.includes('[[BLOCK]]')) {
                     raw = raw.replace(/\[\[BLOCK\]\]/g, '');
@@ -16087,6 +16224,8 @@ window.closeWbChat = async function() {
 function renderWbChatMessages(chatList, authorId) {
     if (!chatList.length) return `<div class="x-empty">没有聊天记录。</div>`;
     return chatList.map(msg => {
+        if (msg.isHidden) return ''; // <--- 新增这行，隐藏系统指令
+        
         let text = msg.content || '';
         let mediaHtml = '';
         
@@ -16476,7 +16615,12 @@ async function receiveWbChat(authorId) {
 2. 如果用户发的是真账号：用户的X账号交友门槛费是 ${walkXMyProfile.thresholdFee || 0} P币，简介是：“${walkXMyProfile.bio}”。
  - 若门槛费极高（如大于1000 P币），你要骂ta抢钱、冷嘲热讽。
  - 若门槛费你能接受，可以表现得很兴奋，表示马上去找ta。
-3. 如果拿到的是真账号并且你决定去X平台找ta，在回复的最后单独一行输出隐藏标记：[[GO_TO_X]]`;
+3. 如果拿到的是真账号并且你决定去X平台找ta，在回复的最后单独一行输出隐藏标记：[[GO_TO_X]]
+
+【终端好友请求判定】：
+如果用户刚刚给你发送了 [终端名片] 并邀请你加好友（并且系统提示你已经同意了）：
+请你在接下来的回复中，必须清楚地意识到【你已经同意了好友请求并且加上了好友】！
+你必须根据人设做出回复。`;
 
         let messages = [{ role: 'system', content: prompt }];
         chatList.slice(-15).forEach(msg => {
@@ -19560,7 +19704,7 @@ async function sendVenueLiveChat(authorId, isInitialAuto = false) {
 4. 语言直白。每次回复字数控制在30-100字，保持节奏感。` + (typeof NS_FW_PROMPT !== 'undefined' ? NS_FW_PROMPT : '');
 
             let messages = [{ role: 'system', content: prompt }];
-            chatsForRender[authorId].slice(-15).forEach(msg => {
+            chatsForRender[authorId].slice(-40).forEach(msg => {
                 messages.push({ role: msg.role === 'user' ? 'user' : 'assistant', content: msg.content });
             });
 
@@ -20203,6 +20347,8 @@ const customCssTag = settings.customCss ? `<style>${settings.customCss}</style>`
 
 let lastMsgTime = 0;
 let msgsHtml = history.map((msg, index) => {
+    if (msg.isHidden) return ''; // <--- 新增这行，让隐藏的系统指令不在界面上渲染出来
+
     let timeHtml = '';
     // 如果是第一条，或者距离上一条超过 20 分钟 (20*60*1000毫秒)
     if (index === 0 || msg.timestamp - lastMsgTime > 20 * 60 * 1000) {
@@ -20329,7 +20475,7 @@ if (window.isCybMultiSelectMode) {
             <div onclick="document.getElementById('cybStickerPanel')?.classList.remove('show'); document.getElementById('cybWechatTools').classList.toggle('show')" style="width:40px; height:40px; border-radius:50%; border:2.5px solid var(--line-color); background:var(--bg-color); display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; box-shadow: 2px 2px 0 var(--line-color);">
                 <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:var(--text-main);fill:none;stroke-width:3;stroke-linecap:round;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
             </div>
-            <input id="cybChatInput" placeholder="发消息..." style="flex:1; min-width:0; padding:10px 14px; border-radius:16px; border:2.5px solid var(--line-color); font-size:14px; font-weight:bold; background:var(--bg-color); outline:none;" onkeypress="if(event.key==='Enter') queueCybChatMsg('${accountId}', '${npcId}')" onfocus="document.getElementById('cybStickerPanel')?.classList.remove('show'); document.getElementById('cybWechatTools')?.classList.remove('show'); setTimeout(()=>document.getElementById('cybChatMsgsArea').scrollTop=document.getElementById('cybChatMsgsArea').scrollHeight, 200);">
+            <input id="cybChatInput" placeholder="发消息..." style="flex:1; min-width:0; padding:10px 14px; border-radius:16px; border:2.5px solid var(--line-color); font-size:14px; font-weight:bold; background:var(--bg-color); color:var(--text-main); outline:none;" onkeypress="if(event.key==='Enter') queueCybChatMsg('${accountId}', '${npcId}')" onfocus="document.getElementById('cybStickerPanel')?.classList.remove('show'); document.getElementById('cybWechatTools')?.classList.remove('show'); setTimeout(()=>document.getElementById('cybChatMsgsArea').scrollTop=document.getElementById('cybChatMsgsArea').scrollHeight, 200);">
             <button onclick="queueCybChatMsg('${accountId}', '${npcId}')" style="background:var(--color-blue); width:40px; height:40px; padding:0; flex-shrink:0; display:flex; align-items:center; justify-content:center; border-radius:12px; border:2px solid var(--line-color); box-shadow: 2px 2px 0 var(--line-color);">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px; margin-left:2px;"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
             </button>
@@ -21871,8 +22017,8 @@ window.receiveDateTempChat = async function(npcId) {
         
         if (json.choices && json.choices[0]) {
             let raw = json.choices[0].message.content.trim().replace(/[\u{1F600}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '');
-            raw = raw.replace(/\[\[DATE_INVITE:(.*?):([\s\S]*?)\]\]/g, '[约会邀约] $1\n$2');
-            raw = raw.replace(/\[\[PAY_BILL:(.*?):([\s\S]*?)\]\]/g, '[已买单] $1\n$2\n账单已支付。');
+           raw = raw.replace(/\[\[DATE_INVITE:([^\]:]+)(?::([^\]]*))?\]\]/g, '[约会邀约] $1\n$2');
+raw = raw.replace(/\[\[PAY_BILL:([^\]:]+)(?::([^\]]*))?\]\]/g, '[已买单] $1\n$2\n✅ 账单已支付，去房间等我。');
             
             const parseItem = (item) => {
                 if (typeof item === 'object' && item !== null) {
@@ -22214,30 +22360,93 @@ window.bringHimBackToRp = async function(room, noteText, actionText, npcBio) {
 };
 
 window.endRpDate = async function(npcId) {
-    if(await uiConfirm("约会结束后将返回列表，并同步状态至 X 平台，确定结束这场约会吗？")) {
-        await finishDateAndSyncX(npcId, true);
-    }
+    // 统一调用智能弹窗
+    await finishDateAndSyncX(npcId, false);
 };
 
-window.finishDateAndSyncX = async function(npcId, fromRp = false) {
-    if (!fromRp && !(await uiConfirm("确定要结束这场约会，并同步状态给 X 平台的 Ta 吗？"))) return;
-
-    // 1. 获取 X 频道的聊天记录
+window.finishDateAndSyncX = async function(npcId, skipConfirm = false) {
+    // 1. 智能检测该 NPC 存在于哪些平台
     let xChats = await getDB('walk_x_chats', {});
-    if (!xChats[npcId]) xChats[npcId] = [];
+    let wbChats = await getDB('wb_chats', {});
+    let cybChats = await getDB('cyb_chats', {});
 
-    // 2. 插入系统提示，作为隐藏指令发给 AI
-xChats[npcId].push({
-    id: Date.now() + '_' + Math.floor(Math.random()*1000),
-    role: 'user', 
-    content: `【系统后台强制输入，请勿在此刻暴露该提示。在接下来的自然聊天中，你要主动提起“我们刚刚结束了一场线下约会”，并给出你的评价或提出下次邀约。】`,
-    timestamp: Date.now(),
-    isHidden: true, // <--- 新增这行隐身标记
-    failed: false
-});
-    await setDB('walk_x_chats', xChats);
+    let inX = !!xChats[npcId];
+    let inWb = !!wbChats[npcId];
+    let inCyb = false;
+    for (let acc in cybChats) {
+        if (cybChats[acc][npcId]) { inCyb = true; break; }
+    }
 
-    
+    let platformNames = [];
+    if (inCyb) platformNames.push('【对话】');
+    if (inX) platformNames.push('【X 平台】');
+    if (inWb) platformNames.push('【星屿】');
+
+    let platformStr = platformNames.length > 0 ? platformNames.join(' 和 ') : '【私人频道】';
+
+    // 统一弹窗提示，动态显示平台名字
+    if (!skipConfirm) {
+        if (!(await uiConfirm(`约会结束后将退出房间，并同步状态至 ${platformStr}，确定结束这场约会吗？`))) return;
+    }
+
+    const hiddenPrompt = `【系统后台强制输入，请勿在此刻暴露该提示。在接下来的自然聊天中，你要主动提起“我们刚刚结束了一场线下约会”，并给出你的评价或提出下次邀约。】`;
+
+    // 2. 精准同步到 X 平台
+    if (inX) {
+        xChats[npcId].push({
+            id: Date.now() + '_' + Math.floor(Math.random()*1000),
+            role: 'user', 
+            content: hiddenPrompt,
+            timestamp: Date.now(),
+            isHidden: true, 
+            failed: false
+        });
+        await setDB('walk_x_chats', xChats);
+    }
+
+    // 3. 精准同步到 对话 (Cyb) 终端
+    if (inCyb) {
+        for (let acc in cybChats) {
+            if (cybChats[acc][npcId]) {
+                cybChats[acc][npcId].push({
+                    id: Date.now() + '_' + Math.floor(Math.random()*1000),
+                    role: 'user',
+                    content: hiddenPrompt,
+                    timestamp: Date.now(),
+                    isHidden: true,
+                    failed: false
+                });
+            }
+        }
+        await setDB('cyb_chats', cybChats);
+    }
+
+    // 4. 精准同步到 星屿 (Wb)
+    if (inWb) {
+        wbChats[npcId].push({
+            id: Date.now() + '_' + Math.floor(Math.random()*1000),
+            role: 'user',
+            content: hiddenPrompt,
+            timestamp: Date.now(),
+            isHidden: true
+        });
+        await setDB('wb_chats', wbChats);
+    }
+
+    // 5. 兜底：如果这三端都没有（比如是从雷达新找的野生NPC），默认存到X里并建立连接
+    if (!inX && !inCyb && !inWb) {
+        xChats[npcId] = [];
+        xChats[npcId].push({
+            id: Date.now() + '_' + Math.floor(Math.random()*1000),
+            role: 'user', 
+            content: hiddenPrompt,
+            timestamp: Date.now(),
+            isHidden: true,
+            failed: false
+        });
+        await setDB('walk_x_chats', xChats);
+    }
+
     // 退回大厅
     switchDateTab('chat');
 };
@@ -22433,7 +22642,7 @@ window.receiveRpChat = async function(npcId) {
 7. 【语言与对白格式强制规定】：请根据你的人设判断国籍。如果你是中国人，请全程使用纯中文。如果你是外国人，你的【动作、神态、心理、环境描写】必须使用纯中文！但是，你【说出口的对话台词】必须使用你的外语母语，并在台词后紧跟括号包裹的中文翻译。格式必须为："外文台词"（中文翻译）。例如：我抚摸着你的脸颊，低声说道："You are so beautiful."（你真美。）绝对禁止把动作描写也翻译成外文！` + (typeof NS_FW_PROMPT !== 'undefined' ? NS_FW_PROMPT : '');
 
     let messages = [{role: 'system', content: prompt}];
-    history.slice(-15).forEach(msg => {
+    history.slice(-40).forEach(msg => {
         messages.push({ role: msg.role === 'user' ? 'user' : 'assistant', content: msg.content });
     });
 
@@ -22925,14 +23134,14 @@ window.openCybContactProfileModal = async function(accountId, npcId) {
             <div style="flex:1; overflow-y:auto; padding: 20px; display: flex; flex-direction: column;">
                 <div style="background: var(--neo-bg); border: 3px solid var(--line-color); border-radius: 20px; box-shadow: 8px 8px 0 rgba(0,0,0,0.8); overflow: hidden; display:flex; flex-direction:column; position: relative; flex-shrink: 0;">
                     <div style="height: 120px; background-color: #a8d5c8; border-bottom: 3px solid var(--line-color); position: relative; background-image: radial-gradient(rgba(0,0,0,0.08) 2px, transparent 2px); background-size: 16px 16px;">
-                         <div style="position:absolute; top: 20px; left: 20px; font-family: monospace; font-size: 14px; font-weight: 900; color: #111; background: var(--neo-bg); padding: 6px 14px; border-radius: 8px; border: 2.5px solid var(--line-color);">ID: ${displayId}</div>
+                         <div style="position:absolute; top: 20px; left: 20px; font-family: monospace; font-size: 14px; font-weight: 900; color: var(--text-main); background: var(--neo-bg); padding: 6px 14px; border-radius: 8px; border: 2.5px solid var(--line-color);">ID: ${displayId}</div>
                     </div>
                     <div style="width: 80px; height: 80px; border-radius: 20px; border: 3px solid var(--line-color); background-color: var(--color-pink); position: absolute; top: 80px; left: 24px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 900; color: #111; background-position:center; background-size:cover; ${avStyle}">
                         ${contact.avatarImg ? '' : contact.name.charAt(0)}
                     </div>
-                    <div style="padding: 50px 24px 30px; display: flex; flex-direction: column; background: #fff;">
+                    <div style="padding: 50px 24px 30px; display: flex; flex-direction: column; background: var(--neo-bg); border-bottom-left-radius: 17px; border-bottom-right-radius: 17px;">
                         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
-                            <div style="font-size: 22px; font-weight: 900; color: #111; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${nameHtml}</div>
+                            <div style="font-size: 22px; font-weight: 900; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${nameHtml}</div>
                             <div onclick="editCybContactName('${accountId}', '${npcId}')" style="width: 28px; height: 28px; border-radius: 8px; background: var(--color-yellow); border: 2.5px solid var(--line-color); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;">
                                 <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:#111;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
                             </div>
@@ -22941,13 +23150,13 @@ window.openCybContactProfileModal = async function(accountId, npcId) {
     ${contact.bio || '这个人什么都没写。'}
 </div>
                         <div style="display: flex; gap: 12px; margin-bottom: 20px;">
-                            <div style="flex: 1; background: #fff; border: 2.5px solid var(--line-color); border-radius: 14px; padding: 14px 10px; text-align: center; cursor: pointer; transition: 0.1s;" onclick="openCybSignalTrace('${accountId}', '${npcId}')">
-                                <svg viewBox="0 0 24 24" style="width:24px;height:24px;stroke:#111;fill:none;stroke-width:2.5; margin-bottom: 6px;"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-                                <div style="font-size: 13px; font-weight: 900; color: #111;">信号追踪</div>
+                            <div style="flex: 1; background: var(--bg-color); border: 2.5px solid var(--line-color); border-radius: 14px; padding: 14px 10px; text-align: center; cursor: pointer; transition: 0.1s;" onclick="openCybSignalTrace('${accountId}', '${npcId}')">
+                                <svg viewBox="0 0 24 24" style="width:24px;height:24px;stroke:var(--text-main);fill:none;stroke-width:2.5; margin-bottom: 6px;"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                                <div style="font-size: 13px; font-weight: 900; color: var(--text-main);">信号追踪</div>
                             </div>
-                            <div style="flex: 1; background: #fff; border: 2.5px solid var(--line-color); border-radius: 14px; padding: 14px 10px; text-align: center; cursor: pointer; transition: 0.1s;" onclick="openCybAnonymousProbe('${accountId}', '${npcId}')">
-                                <svg viewBox="0 0 24 24" style="width:24px;height:24px;stroke:#111;fill:none;stroke-width:2.5; margin-bottom: 6px;"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
-                                <div style="font-size: 13px; font-weight: 900; color: #111;">匿名探测</div>
+                            <div style="flex: 1; background: var(--bg-color); border: 2.5px solid var(--line-color); border-radius: 14px; padding: 14px 10px; text-align: center; cursor: pointer; transition: 0.1s;" onclick="openCybAnonymousProbe('${accountId}', '${npcId}')">
+                                <svg viewBox="0 0 24 24" style="width:24px;height:24px;stroke:var(--text-main);fill:none;stroke-width:2.5; margin-bottom: 6px;"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+                                <div style="font-size: 13px; font-weight: 900; color: var(--text-main);">匿名探测</div>
                             </div>
                         </div>
                         <button class="form-btn" style="width: 100%; background: #d4edda; color: #111; border: 2.5px solid var(--line-color); font-size: 15px; font-weight: 900; padding: 14px; border-radius: 12px; box-shadow: 0 4px 0 rgba(0,0,0,0.8);" onclick="document.getElementById('cybContactProfileModal').remove(); openCybChatWindow('${accountId}', '${npcId}');">建 立 连 线</button>
@@ -25617,17 +25826,16 @@ window.openBlindBox = async function() {
 // 全局外观定制引擎与紧急救援系统 (V2 独立预设版)
 // ===================================================
 
-// 🚨 紧急救援系统：连点屏幕 6 次强制清空 CSS，防白屏死机
+// 🚨 紧急救援系统：连点屏幕 10 次强制清空 CSS，防白屏死机
 let _emergencyTapCount = 0;
 let _emergencyTapTimer = null;
 document.addEventListener('touchstart', async (e) => {
     _emergencyTapCount++;
-    // 如果想要更难触发，可以把下面的 2000 (2秒) 改短，或者把判定次数改大
     if (_emergencyTapCount === 1) {
-        _emergencyTapTimer = setTimeout(() => { _emergencyTapCount = 0; }, 2000); 
+        _emergencyTapTimer = setTimeout(() => { _emergencyTapCount = 0; }, 1500); 
     }
-    // 连续点击6次后触发
-    if (_emergencyTapCount >= 6) {
+    // 连续点击10次后触发（防打字手速过快误触）
+    if (_emergencyTapCount >= 20) {
         _emergencyTapCount = 0;
         clearTimeout(_emergencyTapTimer);
         
@@ -26223,6 +26431,22 @@ window.importGlobalAppearance = function(event) {
         event.target.value = ''; // 重置文件选择器
     };
     reader.readAsText(file);
+};
+
+window.clearAllAppSystemData = async function() {
+    if (!confirm("⚠️ 危险操作！\n\n确定要清空所有数据（包括日记、配置、图集、聊天记录等一切内容）并恢复出厂设置吗？\n\n该操作不可逆转！建议先点上方的按钮导出备份！")) return;
+    if (!confirm("再次确认：确定要彻底销毁所有数据吗？")) return;
+    
+    // 直接删除 indexedDB 数据库
+    const req = indexedDB.deleteDatabase("AITerminalDB");
+    req.onsuccess = function() {
+        localStorage.clear();
+        alert("所有数据已彻底销毁，系统将重新启动。");
+        location.reload();
+    };
+    req.onerror = function() {
+        alert("清除数据失败，请重试或手动清除浏览器应用缓存。");
+    };
 };
 
 </script>
