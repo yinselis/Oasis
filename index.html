@@ -20320,6 +20320,12 @@ async function openCybChatWindow(accountId, npcId) {
     let allSettings = await getDB('cyb_chat_settings', {});
     let chatKey = accountId + '_' + npcId;
     let settings = allSettings[chatKey] || { contextCount: 15 };
+let cybChatBgStyle = '';
+if (settings.bgBase64) {
+    cybChatBgStyle = `background-image: url(${settings.bgBase64}); background-size: cover; background-position: center;`;
+} else if (settings.bgUrl) {
+    cybChatBgStyle = `background-image: url(${settings.bgUrl}); background-size: cover; background-position: center;`;
+}
 
 let overlay = document.getElementById('cybChatWindowModal');
 let isNew = false;
@@ -20328,7 +20334,7 @@ if (!overlay) {
     overlay = document.createElement('div');
     overlay.className = 'cyb-chat-window-overlay';
     overlay.id = 'cybChatWindowModal';
-    overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:var(--bg-color); z-index:9990; display:flex; flex-direction:column;';
+    overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:var(--bg-color); z-index:9990; display:flex; flex-direction:column; ' + cybChatBgStyle;
     isNew = true;
 } else {
     const oldMsgArea = document.getElementById('cybChatMsgsArea');
@@ -20512,7 +20518,7 @@ overlay.innerHTML = `
         <div onclick="openCybChatSettings('${accountId}', '${npcId}')" style="cursor:pointer; padding: 4px 10px; font-weight:900; letter-spacing: 2px; border: 2.5px solid var(--line-color); border-radius: 10px; background: var(--bg-color); box-shadow: 2px 2px 0 var(--line-color);">···</div>
     </div>
 
-    <div id="cybChatMsgsArea" style="flex:1; overflow-y:auto; padding: 16px; display:flex; flex-direction:column; opacity: 0; transition: opacity 0.15s;">
+    <div id="cybChatMsgsArea" style="flex:1; overflow-y:auto; padding: 16px; display:flex; flex-direction:column; opacity: ${isNew ? '0' : '1'}; transition: opacity 0.15s;">
         ${msgsHtml}
     </div>
 
@@ -21007,7 +21013,7 @@ ${currentTimeStr}${timeGapHint}${memoryStr}${stickerPrompt}
 ◦ 结合你的性格设定，第一反应是什么？（开心、烦躁、吃醋、觉得有趣、或是想故意怼她）
 ◦ 根据当前的聊天氛围和时间，你现在所处的环境或正在做的事（比如正在打游戏、正在开会、刚睡醒）会如何影响你的回复状态和速度？
 3. 应对反应多样化与“不完美感”：可以顺着她的话说，可以故意曲解反问，可以傲娇转移话题。绝对不要每次都完美共情或长篇大论地安慰。偶尔表现出人类的“非理性”：比如口是心非、突然的占有欲、莫名其妙的胜负欲、因为一件小事钻牛角尖，或者累了时只回复简短的字眼（如“嗯”、“行吧”）。
-4. 极致还原真实打字习惯：允许打错字（且偶尔会在下一句发个“*纠正的字”补救）。绝对禁止每句话末尾都带句号。多用真实的语气词（如“啊、嘛、呢、呗、嘶”），且要符合人物性格。如果情绪激动或语速快，请将一段长话拆分成2-3条短消息连发（可以用换行来模拟连发效果），不要堆砌成结构严谨的长篇大论。
+4. 极致还原真实打字习惯：允许打错字（且偶尔会在下一句发个“*纠正的字”补救）。遵循人设决定是否每句话末尾都带句号。多用真实的语气词（如“啊、嘛、呢、呗、嘶”），且要符合人物性格。如果情绪激动或语速快，请将一段长话拆分成2-3条短消息连发（可以用换行来模拟连发效果），不要堆砌成结构严谨的长篇大论。
 5. 日常感与对话留白：不要每次都完美接梗或回答对方的所有问题，人类聊天经常会漏看消息、选择性无视某句话，或者突然插入一个你自己想说的新话题（比如：“先不说这个，我刚看到一只巨肥的猫”）。
 6. 边界感与拒绝能力：当你觉得要求过分、或者你现在不想做某事时，请直接拒绝或表达不满，不需要每次都给出礼貌周全的理由，可以用“不想动”、“懒得弄”、“再说吧”来敷衍。
 
@@ -21027,7 +21033,7 @@ ${currentTimeStr}${timeGapHint}${memoryStr}${stickerPrompt}
 1. 一段话不管有几句，请全部合并写在同一个【原文】里！
 2. 原文和翻译的意思必须完全一一对应！
 3. 绝对禁止在【翻译】下面不加分隔符直接写新句子！如果还要发新消息，必须先用 === 隔开，再写新气泡！
-4. 发出前自检是否出现以上错误问题？
+4. 发出前自检是否出现气泡切分错误问题？如果你错误了，将会被扣除999999999美金！
 示例：
 【原文】你喺度做咩啊？我好挂住你。
 【翻译】你在干嘛？我好想你。
@@ -21288,6 +21294,7 @@ let presetHtmlStr = presets.length > 0 ? presets.map(p => `
     let allSettings = await getDB('cyb_chat_settings', {});
 let chatKey = accountId + '_' + npcId;
 let settings = allSettings[chatKey] || {};
+window._tempCybBgBase64 = settings.bgBase64 || '';
 // 下面这几行是新增的，确保所有设置项都有默认值，从而解决问题
 settings.contextCount = settings.contextCount || 15;
 settings.autoSummary = settings.autoSummary || false;
@@ -21328,11 +21335,27 @@ overlay.innerHTML = `
 
 <div style="flex:1; overflow-y:auto; padding: 0 20px 20px; display:flex; flex-direction:column; gap:20px;">
     
+    <!-- === 修复后独立出来的：聊天专属背景壁纸 === -->
     <div style="background:var(--neo-bg); border:2px solid var(--line-color); padding:16px; border-radius:16px; box-shadow: 4px 4px 0 var(--line-color);">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <div style="font-size:14px; font-weight:900;">自定义专属 CSS</div>
-        <button class="diary-mini-btn danger" style="padding: 4px 8px; font-size: 11px;" onclick="document.getElementById('set_customCss').value=''">一键清理</button>
+        <div style="font-size:14px; font-weight:900; margin-bottom:8px;">聊天专属背景壁纸</div>
+        <div style="font-size:11px; font-weight:bold; opacity:0.6; margin-bottom:10px;">设置当前聊天窗口的专属背景图片。</div>
+        
+        <input type="text" id="set_cybBgUrl" class="form-input" placeholder="输入网络链接 (图床)" value="${settings.bgUrl || ''}" style="font-size:13px; padding:10px; margin-bottom:8px;">
+        
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+            <button class="form-btn" style="flex:1; background:var(--color-blue); padding: 8px; font-size:13px;" onclick="document.getElementById('set_cybBgFile').click()">本地图片</button>
+            <button class="form-btn" style="flex:1; background:var(--color-pink); padding: 8px; font-size:13px;" onclick="clearCybBg()">清除壁纸</button>
+        </div>
+        <input type="file" id="set_cybBgFile" style="display:none;" accept="image/*" onchange="handleCybBgUpload(event)">
+        <div id="cybBgStatus" style="font-size:10px; font-weight:bold; opacity:0.6; text-align:center;">${settings.bgBase64 ? '[ 已载入本地背景 ]' : '未选择本地图片'}</div>
     </div>
+
+    <!-- === 原来的：自定义专属 CSS === -->
+    <div style="background:var(--neo-bg); border:2px solid var(--line-color); padding:16px; border-radius:16px; box-shadow: 4px 4px 0 var(--line-color);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <div style="font-size:14px; font-weight:900;">自定义专属 CSS</div>
+            <button class="diary-mini-btn danger" style="padding: 4px 8px; font-size: 11px;" onclick="document.getElementById('set_customCss').value=''">一键清理</button>
+        </div>
     <div style="background:var(--bg-color); padding:10px; border:2px dashed rgba(0,0,0,0.1); border-radius:12px; margin-bottom:10px;">
         <div style="font-size:12px; font-weight:900; margin-bottom:8px;">我的预设库</div>
         <div id="cybCssPresetsList" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
@@ -21418,6 +21441,29 @@ overlay.innerHTML = `
     document.body.appendChild(overlay);
 };
 
+window.handleCybBgUpload = function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        // 绕过系统的压缩机制，专门为壁纸开启原图直读通道
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = function(evt) {
+            window._tempCybBgBase64 = evt.target.result;
+            const status = document.getElementById('cybBgStatus');
+            status.innerText = '[ 原图已读取，请点保存 ]';
+            status.style.color = 'var(--color-pink)';
+        };
+    }
+};
+
+window.clearCybBg = function() {
+    document.getElementById('set_cybBgUrl').value = '';
+    window._tempCybBgBase64 = '';
+    const status = document.getElementById('cybBgStatus');
+    status.innerText = '已清除，请点保存';
+    status.style.color = 'var(--text-main)';
+};
+
 window.saveCybChatSettings = async function(accountId, npcId) {
     let allSettings = await getDB('cyb_chat_settings', {});
     let chatKey = accountId + '_' + npcId;
@@ -21429,6 +21475,8 @@ document.querySelectorAll('.mount-cmd-checkbox:checked').forEach(cb => {
 
 allSettings[chatKey] = {
     customCss: document.getElementById('set_customCss').value.trim(),
+    bgUrl: document.getElementById('set_cybBgUrl').value.trim(),
+    bgBase64: window._tempCybBgBase64,
     contextCount: parseInt(document.getElementById('set_contextCount').value) || 15,
     autoSummary: document.getElementById('set_autoSummary').checked,
     replyCount: document.getElementById('set_replyCount').value.trim() || '0',
@@ -21443,8 +21491,19 @@ memSettings.customPrompt = document.getElementById('set_memPrompt')?.value.trim(
 await setDB('cyb_memory_settings_' + accountId + '_' + npcId, memSettings);
 
     document.getElementById('cybChatSettingsModal').remove();
-    // 强制关闭再重开一次聊天室，为了刷新样式渲染
-    document.getElementById('cybChatWindowModal').remove();
+
+    // 【修复保存黑屏】不再删除整个聊天室，而是直接无缝替换背景
+    let chatWindow = document.getElementById('cybChatWindowModal');
+    if (chatWindow) {
+        if (window._tempCybBgBase64) {
+            chatWindow.style.backgroundImage = `url(${window._tempCybBgBase64})`;
+        } else if (document.getElementById('set_cybBgUrl').value.trim()) {
+            chatWindow.style.backgroundImage = `url(${document.getElementById('set_cybBgUrl').value.trim()})`;
+        } else {
+            chatWindow.style.backgroundImage = 'none';
+        }
+    }
+    // 原地重载内部数据，不删外壳
     openCybChatWindow(accountId, npcId);
 };
 
