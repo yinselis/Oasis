@@ -349,7 +349,7 @@ body {
 
         .chat-container { flex: 1; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; padding-bottom: 20px; }
         .chat-input-area { display: flex; gap: 10px; margin-top: auto; }
-        .chat-input-area input { flex: 1; padding: 14px; border: var(--border-width) solid var(--line-color); border-radius: 16px; font-size: 15px; font-weight: bold; background: var(--neo-bg); color: var(--text-main); outline: none; }
+        .chat-input-area input { flex: 1; min-width: 0; padding: 14px; border: var(--border-width) solid var(--line-color); border-radius: 16px; font-size: 15px; font-weight: bold; background: var(--neo-bg); color: var(--text-main); outline: none; }
         .chat-input-area button { background: var(--color-blue); color: #2D2D2D; border: var(--border-width) solid var(--line-color); border-radius: 16px; padding: 0 20px; font-weight: 900; cursor: pointer; box-shadow: 3px 3px 0px var(--line-color); }
         .chat-input-area button:active { transform: translate(2px, 2px); box-shadow: 0px 0px 0px var(--line-color); }
         
@@ -3031,11 +3031,11 @@ body.desktop-text-invert .widget-disc .app-label {
     </div>
     
     <!-- 中央大肉垫 -->
-    <div class="paw-fab" onclick="togglePawMenu()">
-        <svg viewBox="0 0 24 24" style="width:28px; height:28px; fill:var(--text-main); stroke:none;">
-            <path d="M7.5,5A2.5,2.5 0 0,0 5,7.5A2.5,2.5 0 0,0 7.5,10A2.5,2.5 0 0,0 10,7.5A2.5,2.5 0 0,0 7.5,5M16.5,5A2.5,2.5 0 0,0 14,7.5A2.5,2.5 0 0,0 16.5,10A2.5,2.5 0 0,0 19,7.5A2.5,2.5 0 0,0 16.5,5M12,10.5C9.5,10.5 7.5,12 7.5,14C7.5,14 7.5,14.5 7.5,15C7.5,16 8,17 9,17C9,17 9.5,19 12,19C14.5,19 15,17 15,17C16,17 16.5,16 16.5,15C16.5,14.5 16.5,14 16.5,14C16.5,12 14.5,10.5 12,10.5M4,10.5A2,2 0 0,0 2,12.5A2,2 0 0,0 4,14.5A2,2 0 0,0 6,12.5A2,2 0 0,0 4,10.5M20,10.5A2,2 0 0,0 18,12.5A2,2 0 0,0 20,14.5A2,2 0 0,0 22,12.5A2,2 0 0,0 20,10.5Z"/>
-        </svg>
-    </div>
+<div class="paw-fab" onclick="togglePawMenu()">
+    <svg viewBox="0 0 24 24" style="width:28px; height:28px; fill:var(--text-main); stroke:none;">
+        <path d="M8.5 4.999c-1.103 0-2 .897-2 2s.897 2 2 2 2-.897 2-2-.897-2-2-2zm7 0c-1.103 0-2 .897-2 2s.897 2 2 2 2-.897 2-2-.897-2-2-2zm-11 5c-1.103 0-2 .897-2 2s.897 2 2 2 2-.897 2-2-.897-2-2-2zm15 0c-1.103 0-2 .897-2 2s.897 2 2 2 2-.897 2-2-.897-2-2-2zm-5.753 2.148c-1.042-.34-2.261-.318-3.494 0-1.258.326-2.529 1.108-3.253 2.217-1.196 1.83-1.01 4.568.218 6.037.992 1.189 2.502 1.606 4.782 1.606 2.186 0 3.71-.4 4.708-1.579 1.25-1.488 1.458-4.254.26-6.079-.728-1.116-1.996-1.89-3.221-2.202z"/>
+    </svg>
+</div>
 </div>
 
     <!-- ================= APP 内页悬浮层 ================= -->
@@ -6678,7 +6678,7 @@ function uiConfirm(message) {
         const overlay = document.createElement('div');
         overlay.className = 'modal-overlay';
         overlay.style.display = 'flex';
-        overlay.style.zIndex = '9999'; 
+        overlay.style.zIndex = '9999999'; 
         
         overlay.innerHTML = `
             <div class="modal-content" style="max-width: 280px; text-align: center; padding: 24px 20px;">
@@ -12849,10 +12849,10 @@ async function sendWalkXChat(authorId) {
 }
 
 async function generateWalkXChatReplyList(authorId, userText) {
-let posts = await getDB('walk_x_posts', []);
-const authorCache = await getDB('walk_x_author_cache', {});
-const info = posts.find(p => p.authorId === authorId) || authorCache[authorId];
-if (!info) return ['……'];
+    let posts = await getDB('walk_x_posts', []);
+    const authorCache = await getDB('walk_x_author_cache', {});
+    const info = posts.find(p => p.authorId === authorId) || authorCache[authorId];
+    if (!info) return ['……'];
 
     const apiUrl = await getDB('apiUrl');
     const apiKey = await getDB('apiKey');
@@ -12866,325 +12866,203 @@ if (!info) return ['……'];
             const recent = history.slice(-50);
             
             let timeGapHint = "";
-if (history.length > 1) {
-    // 必须找倒数第二条的时间，因为倒数第一条是你刚发出去的那句话！
-    let lastMsgTime = history[history.length - 2].timestamp;
-    let diffHours = (Date.now() - lastMsgTime) / (1000 * 60 * 60);
-    if (diffHours > 8) {
-        timeGapHint = `\n【系统强制提示：距离你们上次聊天已经过去了 ${diffHours.toFixed(1)} 小时！用户消失了很久才突然找你。你必须在回复中体现出这一点，必须遵守人物设定。】`;
-    } else if (diffHours > 1) {
-        timeGapHint = `\n【系统提示：距离上次聊天过去了 ${diffHours.toFixed(1)} 小时。用户隔了一段时间才回你，你可以稍微提一下。】`;
-    }
-}
+            if (history.length > 1) {
+                let lastMsgTime = history[history.length - 2].timestamp;
+                let diffHours = (Date.now() - lastMsgTime) / (1000 * 60 * 60);
+                if (diffHours > 8) {
+                    timeGapHint = `\n【系统强制提示：距离你们上次聊天已经过去了 ${diffHours.toFixed(1)} 小时！用户消失了很久才突然找你。你必须在回复中体现出这一点，必须遵守人物设定。】`;
+                } else if (diffHours > 1) {
+                    timeGapHint = `\n【系统提示：距离上次聊天过去了 ${diffHours.toFixed(1)} 小时。用户隔了一段时间才回你，你可以稍微提一下。】`;
+                }
+            }
 
-const logs = await getDB('phoneLogs', []);
-const userLogs = logs.filter(l => l.aiProfileId === authorId);
-let phoneMemoryText = "";
-if (userLogs.length > 0) {
-    const lastLog = userLogs[userLogs.length - 1];
-    // 如果最后一通电话发生在 12 小时内，就让它记住
-    if (Date.now() - lastLog.id < 12 * 60 * 60 * 1000) {
-        let callStr = lastLog.transcript.map(line => `${line.speaker === 'user' ? '用户' : info.authorName}：${line.text}`).join('\n');
-        phoneMemoryText = `\n\n【系统提示：注意！你们在不久前刚打过一通电话，以下是刚刚的通话录音文本：\n${callStr}\n请你在接下来的文字私聊中保持记忆连贯，绝对不要像失忆一样，必须顺着电话里聊过的事情往下说！】`;
-    }
-}
+            const logs = await getDB('phoneLogs', []);
+            const userLogs = logs.filter(l => l.aiProfileId === authorId);
+            let phoneMemoryText = "";
+            if (userLogs.length > 0) {
+                const lastLog = userLogs[userLogs.length - 1];
+                if (Date.now() - lastLog.id < 12 * 60 * 60 * 1000) {
+                    let callStr = lastLog.transcript.map(line => `${line.speaker === 'user' ? '用户' : info.authorName}：${line.text}`).join('\n');
+                    phoneMemoryText = `\n\n【系统提示：注意！你们在不久前刚打过一通电话，以下是通话录音文本：\n${callStr}\n请你在接下来的文字私聊中保持记忆连贯，顺着电话里聊过的事情往下说！】`;
+                }
+            }
 
-// 提取计算你们俩的热度值
-let allPosts = await getDB('walk_x_posts', []);
-let myPosts = allPosts.filter(p => p.authorId === 'me');
-let myHeat = myPosts.reduce((sum, p) => sum + (p.likes || 0)*2 + (p.comments || 0)*5, 0);
-const myFans = await getDB('walk_x_fans', []);
-myHeat += myFans.length * 10;
+            let allPosts = await getDB('walk_x_posts', []);
+            let myPosts = allPosts.filter(p => p.authorId === 'me');
+            let myHeat = myPosts.reduce((sum, p) => sum + (p.likes || 0)*2 + (p.comments || 0)*5, 0);
+            const myFans = await getDB('walk_x_fans', []);
+            myHeat += myFans.length * 10;
 
-let targetHeat = 0;
-let hotNpcs = await getDB('walk_x_hot_npcs', []);
-let hotNpc = hotNpcs.find(n => n.authorId === authorId);
-if (hotNpc) {
-    // 如果是热度榜上的常驻大牛，直接取榜单里的恐怖热度
-    targetHeat = hotNpc.heat;
-} else {
-    // 如果是普通刷新出来的小喽啰，算他的帖子热度
-    let targetPosts = allPosts.filter(p => p.authorId === authorId);
-    targetHeat = targetPosts.reduce((sum, p) => sum + (p.likes || 0)*2 + (p.comments || 0)*5, 0);
-}
+            let targetHeat = 0;
+            let hotNpcs = await getDB('walk_x_hot_npcs', []);
+            let hotNpc = hotNpcs.find(n => n.authorId === authorId);
+            if (hotNpc) {
+                targetHeat = hotNpc.heat;
+            } else {
+                let targetPosts = allPosts.filter(p => p.authorId === authorId);
+                targetHeat = targetPosts.reduce((sum, p) => sum + (p.likes || 0)*2 + (p.comments || 0)*5, 0);
+            }
 
-                    const messages = [
-    {
-        role: 'system',
-        content: `你是一个在X平台上的男性，名字是${info.authorName}（账号${info.handle}，简介：${info.bio}）。你在平台的热度值是 ${targetHeat}。
+            const prompt = `你是一个在X平台上的男性，名字是${info.authorName}（账号${info.handle}，简介：${info.bio}）。你在平台的热度值是 ${targetHeat}。
 当前现实时间是：${new Date().toLocaleString()}。${timeGapHint}${phoneMemoryText}
-你正在和一个女性向用户（或者是你的猎物/你的主人/你的奴隶）私聊。她的账号昵称是：${myProfile.name}（你心里知道她的名字即可，不用刻意每次都称呼）。她在平台的热度值是 ${myHeat}。【极其重要】：她的交友门槛费是 ${myProfile.thresholdFee || 0} P币！要想讨好她或获得后续加她好友的资格，你必须积累消费不低于这个金额的P币（通过输出转账隐藏标记实现，如 [[TRANSFER:${myProfile.thresholdFee || 520}]] ）！如果你觉得用户极其冒犯、侮辱你，或者你决定彻底和用户决裂，请在回复的最后单起一行输出 [[BLOCK]]。请对比你们两人的热度值并结合你的人设！如果你是一个高傲或眼光高的高热度博主，而用户热度远低于你，或者你只是单纯觉得她无趣不想理她，请直接且仅输出一个词：[[IGNORE]]。
+你正在和一个女性向用户私聊。她的账号昵称是：${myProfile.name}。她在平台的热度值是 ${myHeat}。【极其重要】：她的交友门槛费是 ${myProfile.thresholdFee || 0} P币！要想讨好她或获得后续加她好友的资格，你必须积累消费不低于这个金额的P币（通过输出转账隐藏标记实现，如 [[TRANSFER:${myProfile.thresholdFee || 520}]] ）！如果你觉得用户极其冒犯、侮辱你，或者你决定彻底和用户决裂，请在回复的最后单起一行输出 [[BLOCK]]。请对比你们两人的热度值并结合你的人设！如果你是一个高傲或眼光高的高热度博主，而用户热度远低于你，或者你只是单纯觉得她无趣不想理她，请直接且仅输出一个词：[[IGNORE]]。
 
 要求：
-1. 【语言绝对强制】：根据你的名字和设定判断国籍。如果你是中国人，请【100%使用纯中文】回复！如果你是外国人，请【100%使用你的外语母语】回复，绝对不要因为用户用中文你就跟着用中文！
+1. 【语言绝对强制】：如果你是中国人，请【100%使用纯中文】回复！如果你是外国人，请【100%使用你的外语母语】回复，绝对不要因为用户用中文你就跟着用中文！
 2. 【气泡数量限制】：每次回复必须生成 1 到 8 条独立的消息（气泡）。
-3. 【多气泡拆分规则】：如果连发多句话或动作描写，【必须】拆分成多个独立的 JSON 对象！绝对禁止在一个 original 里用换行符塞多句话！
-4. 你的回复必须极度直白、充满性张力和荷尔蒙，直接涉黄（如调情、命令、性暗示、粗暴的荤段子）。可以疯狂融入Dom/Sub元素（如“乖狗狗”、“把内裤脱了给我看”、“叫主人”、“给我舔”）。必须遵守人物设定决定回复！如果你的人设是主播或网黄，请在聊天中欲擒故纵，疯狂暗示或直接命令用户给你转账爆金币，甚至拿大尺度私密视频作为诱饵要钱。
-5. 如果用户发来包含[图片]或[视频]，你必须表现出极度的兴奋或控制欲，给出色情的评价和命令，如“真骚，流这么多水”、“腿张开点我看看底下的细节”。
+3. 【多气泡拆分规则】：如果连发多句话或动作描写，必须使用 === 拆分成多个气泡！绝对禁止在一个气泡里塞多句话！
+4. 你的回复必须极度直白、充满性张力和荷尔蒙，可以疯狂融入Dom/Sub元素。如果你的人设是主播或网黄，请用文字疯狂暗示或直接命令用户给你转账爆金币（注意：只能用文字命令，绝对不要输出 [[TRANSFER:金额]] 标记，那是你给用户送钱的指令！）。
+5. 如果用户发来包含图片或视频，你必须表现出极度的兴奋或控制欲，给出色情的评价和命令。
 6. 你自己也可以主动发大尺度图片或视频。若要发，格式必须为：
 [图片] 标题\\n描述内容
 或
 [视频] 标题\\n描述内容
-（标题和描述必须极度露骨，如“[图片] 勃起的特写\\n青筋暴起，内裤快撑破了，流了一点前列腺液”）
-7. 【转账与代付判定】：
-- 如果用户发来一份【待支付账单】(带有[约会邀约]字样)，请根据人设决定是否替她买单，买单等同于与用户线下约炮。如果同意，【必须】在回复的任意一句话中加入隐藏标记 [[PAY_BILL:账单上的场地名称:账单上的详细描述]]。
-- 如果没有账单，但你想主动打钱零花，可以主动转账，加入隐藏标记 [[TRANSFER:金额]]，例如 [[TRANSFER:500]]。你可以和其他的话混在一起发。
-8. 【终端好友判定】：如果用户发来的聊天里带有一张【终端名片】（带有隐藏标记 [[CYB_ID:xxx]]），这是在向你邀请加终端（微信）好友！你要结合你们的关系进度决定是否同意。如果同意，【必须】在回复的最后单起一行输出隐藏标记：[[ADD_CYB_FRIEND:对方发来的CYB_ID]]。如果拒绝，直接言语拒绝即可。
-9. 【气泡切分与翻译死命令】：必须返回合法的 JSON 数组！
-- 如果你是中国人：只需填 original 字段（纯中文），如：[{"original": "宝贝，过来。"}, {"original": "(将你拉入怀中)"}]
-- 如果你是外国人：必须严格按照 {"original": "外语原文", "trans": "简体中文翻译"} 的格式！
-【绝对强制】：trans 字段必须且只能是简体中文，绝对禁止翻译成英文！
-【正确示例】：[{"original": "愛してる", "trans": "我爱你。"}, {"original": "Good girl.", "trans": "乖女孩。"}]
-【极度警告】：严禁在一个对象的 original 或 trans 里中外文混合！
-10. 【私密解锁判断】：如果用户在明确请求查看你主页“锁定的帖子”、“隐藏内容”或“大尺度照片”，请根据人设判断是否同意。如果同意，【必须】在回复最后单独一行输出 [[UNLOCK:YES]]。如果拒绝，或用户只是普通聊天（比如玩梗说“看看”），【绝对禁止】输出该标记！` + NS_FW_PROMPT
-                }
-            ];
+7. 【打钱与代付】：如果用户发来【待支付账单】，决定是否代付。同意则输出 [[PAY_BILL:账单上的场地名称:账单上的详细描述]]。如果你想主动给用户打钱送钱，输出 [[TRANSFER:金额]]。警告：[[TRANSFER:金额]] 代表你把你的钱白白送给用户，如果你是想要用户给你钱，千万不要输出这个标记！
+8. 【终端好友判定】：收到 [[CYB_ID:xxx]] 邀请时，同意则输出 [[ADD_CYB_FRIEND:对方的CYB_ID]]。
+9. 【气泡切分与翻译死命令】：绝对不要使用 JSON！必须严格按照以下纯文本格式输出：
+- 每个独立的气泡之间必须用 === 分隔。
+- 如果你是中国人角色，直接写出纯中文回复，例如：
+第一句话
+===
+第二句话
+- 如果你是外国人角色，必须严格按照“【原文】外语\\n【翻译】中文”的格式，绝对不要搞错！例如：
+【原文】Are you crazy?
+【翻译】你疯了吗？
+===
+【原文】I want you.
+【翻译】我想要你。
+10. 【私密解锁判断】：若用户请求查看主页锁定内容，同意则输出 [[UNLOCK:YES]]。` + (typeof NS_FW_PROMPT !== 'undefined' ? NS_FW_PROMPT : '');
 
-            recent.forEach(item => {
-                messages.push({
-                    role: item.role === 'user' ? 'user' : 'assistant',
-                    content: item.content
-                });
-            });
-
+            const messages = [{ role: 'system', content: prompt }];
+            recent.forEach(item => { messages.push({ role: item.role === 'user' ? 'user' : 'assistant', content: item.content }); });
             messages.push({ role: 'user', content: userText });
 
             const endpoint = apiUrl.replace(/\/+$/, '') + (apiUrl.includes('/v1') ? '/chat/completions' : '/v1/chat/completions');
             const res = await fetch(endpoint, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`
-                },
-                body: JSON.stringify({
-                    model,
-                    messages,
-                    temperature: 0.95
-                })
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                body: JSON.stringify({ model, messages, temperature: 0.95 })
             });
             const json = await res.json();
 
-if (json.choices && json.choices[0]) {
-    let raw = json.choices[0].message.content;
-    // 如果 NPC 决定无视并高傲地不回
-if (raw.includes('[[IGNORE]]')) {
-    return []; // 直接返回空，彻底切断回复
-}
-// 0. 检测 NPC 是否主动转账或代付
-let extractedTransfer = null;
-let extractedPayBill = null;
-if (raw.includes('[[TRANSFER:')) {
-    const transferMatch = raw.match(/\[\[TRANSFER:(\d+)\]\]/);
-    if (transferMatch) {
-        const amount = parseInt(transferMatch[1]);
-        if (!isNaN(amount) && amount > 0) {
-            const received = Math.floor(amount * 0.7);
-            let pCoin = await getDB('walk_x_p_coin', 0);
-            await setDB('walk_x_p_coin', pCoin + received);
-            extractedTransfer = `[转账] ${amount}\n转账给你`;
-        }
-    }
-    raw = raw.replace(/\[\[TRANSFER:\d+\]\]/g, '');
-}
-if (raw.includes('[[PAY_BILL:')) {
-    const payMatch = raw.match(/\[\[PAY_BILL:(.*?):([\s\S]*?)\]\]/);
-    if (payMatch) {
-        extractedPayBill = `[约会邀约] ${payMatch[1]}\n${payMatch[2]}\n我已经付完款了。`;
-        // 👇 新增：当 X 频道的 NPC 付款后，把付款卡片也同步到“赴约”里
-        let tempChatsDb = await getDB('date_temp_chats', {});
-        if (tempChatsDb[authorId]) {
-            tempChatsDb[authorId].messages.push({
-                id: Date.now(), role: 'npc', content: extractedPayBill, timestamp: Date.now()
-            });
-            await setDB('date_temp_chats', tempChatsDb);
-        }
-        // 👆 新增结束
-    }
-    raw = raw.replace(/\[\[PAY_BILL:.*?:[\s\S]*?\]\]/g, '');
-}
+            if (json.choices && json.choices[0]) {
+                let raw = json.choices[0].message.content;
+                if (raw.includes('[[IGNORE]]')) return []; 
 
- // 1. 检测 NPC 是否下达了拉黑指令
-if (raw.includes('[[BLOCK]]')) {
-    raw = raw.replace(/\[\[BLOCK\]\]/g, '');
-    let npcBlocks = await getDB('walk_x_npc_blocks', []);
-    if(!npcBlocks.includes(authorId)) {
-        npcBlocks.push(authorId);
-        await setDB('walk_x_npc_blocks', npcBlocks);
-        
-        let chats = await getDB('walk_x_chats', {});
-        if (!chats[authorId]) chats[authorId] = [];
-        chats[authorId].push({
-            id: Date.now() + '_' + Math.floor(Math.random()*1000),
-            role: 'npc',
-            content: `[系统提示] 因为你的言辞，对方已将你拉黑。`,
-            timestamp: Date.now()
-        });
-        await setDB('walk_x_chats', chats);
-    }
-}
+                let extractedTransfer = null;
+                let extractedPayBill = null;
+                if (raw.includes('[[TRANSFER:')) {
+                    const transferMatch = raw.match(/\[\[TRANSFER:(\d+)\]\]/);
+                    if (transferMatch) {
+                        const amount = parseInt(transferMatch[1]);
+                        if (!isNaN(amount) && amount > 0) {
+                            const received = Math.floor(amount * 0.7);
+                            let pCoin = await getDB('walk_x_p_coin', 0);
+                            await setDB('walk_x_p_coin', pCoin + received);
+                            extractedTransfer = `[转账] ${amount}\n转账给你`;
+                        }
+                    }
+                    raw = raw.replace(/\[\[TRANSFER:\d+\]\]/g, '');
+                }
+                if (raw.includes('[[PAY_BILL:')) {
+                    const payMatch = raw.match(/\[\[PAY_BILL:(.*?):([\s\S]*?)\]\]/);
+                    if (payMatch) {
+                        extractedPayBill = `[约会邀约] ${payMatch[1]}\n${payMatch[2]}\n我已经付完款了。`;
+                        let tempChatsDb = await getDB('date_temp_chats', {});
+                        if (tempChatsDb[authorId]) {
+                            tempChatsDb[authorId].messages.push({ id: Date.now(), role: 'npc', content: extractedPayBill, timestamp: Date.now() });
+                            await setDB('date_temp_chats', tempChatsDb);
+                        }
+                    }
+                    raw = raw.replace(/\[\[PAY_BILL:.*?:[\s\S]*?\]\]/g, '');
+                }
 
-// 1.5 检测 NPC 是否同意解锁私密内容
-if (raw.includes('[[UNLOCK:YES]]')) {
-    raw = raw.replace(/\[\[UNLOCK:YES\]\]/g, '');
-    let unlocks = await getDB('walk_x_unlocks', {});
-    if (!unlocks[authorId]) {
-        unlocks[authorId] = true;
-        await setDB('walk_x_unlocks', unlocks);
-        
-        let chats = await getDB('walk_x_chats', {});
-        if (!chats[authorId]) chats[authorId] = [];
-        chats[authorId].push({
-            id: Date.now() + '_' + Math.floor(Math.random()*1000),
-            role: 'npc',
-            content: `[系统提示] ${info.authorName} 已为你解锁了主页的私密内容。`,
-            timestamp: Date.now()
-        });
-        await setDB('walk_x_chats', chats);
-    }
-}
+                if (raw.includes('[[BLOCK]]')) {
+                    raw = raw.replace(/\[\[BLOCK\]\]/g, '');
+                    let npcBlocks = await getDB('walk_x_npc_blocks', []);
+                    if(!npcBlocks.includes(authorId)) {
+                        npcBlocks.push(authorId);
+                        await setDB('walk_x_npc_blocks', npcBlocks);
+                        let chats = await getDB('walk_x_chats', {});
+                        if (!chats[authorId]) chats[authorId] = [];
+                        chats[authorId].push({ id: Date.now() + '_' + Math.floor(Math.random()*1000), role: 'npc', content: `[系统提示] 因为你的言辞，对方已将你拉黑。`, timestamp: Date.now() });
+                        await setDB('walk_x_chats', chats);
+                    }
+                }
 
-// 1.6 检测 NPC 是否同意添加终端好友
-let addCybMatch = raw.match(/\[\[ADD_CYB_FRIEND:([^\]]+)\]\]/);
-if (addCybMatch) {
-    let cybId = addCybMatch[1];
-    raw = raw.replace(/\[\[ADD_CYB_FRIEND:.*?\]\]/g, ''); // 剔除标记
-    
-    let cybContactsDb = await getDB('cyb_contacts', {});
-    if (!cybContactsDb[cybId]) cybContactsDb[cybId] = [];
-    
-    if (!cybContactsDb[cybId].find(c => c.id === 'cyb_npc_' + authorId)) {
-        cybContactsDb[cybId].push({
-            id: 'cyb_npc_' + authorId,
-            name: info.authorName,
-            bio: info.bio,
-            avatarImg: info.avatarImg || ''
-        });
-        await setDB('cyb_contacts', cybContactsDb);
-        
-        // 延迟3秒追加一条好看的系统提示气泡
-        setTimeout(async () => {
-            let cDb = await getDB('walk_x_chats', {});
-            cDb[authorId].push({ id: Date.now() + '_' + Math.floor(Math.random()*1000), role: 'npc', content: `[系统提示] 对方同意了你的请求，成功加入终端联系人。`, timestamp: Date.now() + 2 });
-            await setDB('walk_x_chats', cDb);
-            
-            const msgArea = document.getElementById('walkXChatArea');
-            if (msgArea) {
-                let sysHtml = `
-                <div style="text-align:center; padding: 10px 0; margin-bottom: 12px;">
-                    <span style="font-size:11px; font-weight:900; opacity:0.6; background:var(--neo-bg); border: 2px solid var(--line-color); padding:6px 14px; border-radius:12px; box-shadow: 2px 2px 0 var(--line-color); color:var(--text-main); display:inline-block; max-width:85%; line-height:1.5;">对方同意了你的请求，成功加入终端联系人。</span>
-                </div>`;
-                msgArea.insertAdjacentHTML('beforeend', sysHtml);
-                msgArea.scrollTop = msgArea.scrollHeight;
-            }
-        }, 3000);
-    }
-}
+                if (raw.includes('[[UNLOCK:YES]]')) {
+                    raw = raw.replace(/\[\[UNLOCK:YES\]\]/g, '');
+                    let unlocks = await getDB('walk_x_unlocks', {});
+                    if (!unlocks[authorId]) {
+                        unlocks[authorId] = true;
+                        await setDB('walk_x_unlocks', unlocks);
+                        let chats = await getDB('walk_x_chats', {});
+                        if (!chats[authorId]) chats[authorId] = [];
+                        chats[authorId].push({ id: Date.now() + '_' + Math.floor(Math.random()*1000), role: 'npc', content: `[系统提示] ${info.authorName} 已为你解锁了主页的私密内容。`, timestamp: Date.now() });
+                        await setDB('walk_x_chats', chats);
+                    }
+                }
 
+                let addCybMatch = raw.match(/\[\[ADD_CYB_FRIEND:([^\]]+)\]\]/);
+                if (addCybMatch) {
+                    let cybId = addCybMatch[1];
+                    raw = raw.replace(/\[\[ADD_CYB_FRIEND:.*?\]\]/g, ''); 
+                    let cybContactsDb = await getDB('cyb_contacts', {});
+                    if (!cybContactsDb[cybId]) cybContactsDb[cybId] = [];
+                    if (!cybContactsDb[cybId].find(c => c.id === 'cyb_npc_' + authorId)) {
+                        cybContactsDb[cybId].push({ id: 'cyb_npc_' + authorId, name: info.authorName, bio: info.bio, avatarImg: info.avatarImg || '' });
+                        await setDB('cyb_contacts', cybContactsDb);
+                        setTimeout(async () => {
+                            let cDb = await getDB('walk_x_chats', {});
+                            cDb[authorId].push({ id: Date.now() + '_' + Math.floor(Math.random()*1000), role: 'npc', content: `[系统提示] 对方同意了你的请求，成功加入终端联系人。`, timestamp: Date.now() + 2 });
+                            await setDB('walk_x_chats', cDb);
+                            const msgArea = document.getElementById('walkXChatArea');
+                            if (msgArea) {
+                                msgArea.insertAdjacentHTML('beforeend', `<div style="text-align:center; padding: 10px 0; margin-bottom: 12px;"><span style="font-size:11px; font-weight:900; opacity:0.6; background:var(--neo-bg); border: 2px solid var(--line-color); padding:6px 14px; border-radius:12px; box-shadow: 2px 2px 0 var(--line-color); color:var(--text-main); display:inline-block; max-width:85%; line-height:1.5;">对方同意了你的请求，成功加入终端联系人。</span></div>`);
+                                msgArea.scrollTop = msgArea.scrollHeight;
+                            }
+                        }, 3000);
+                    }
+                }
 
+                // === 纯文本标记解析核心逻辑 ===
+                let cleanRaw = raw.trim().replace(/```json/gi, '').replace(/```text/gi, '').replace(/```/g, ''); 
+                let blocks = cleanRaw.split('===').map(s => s.trim()).filter(Boolean);
+                let expandedList = [];
 
-    // 2. 清理返回文本
-    raw = raw.trim()
-    .replace(/```json/gi, '')
-    .replace(/```/g, '')
-    .replace(/[\u{1F600}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '');
+                blocks.forEach(block => {
+                    if (/^$$(图片|视频|转账|礼物|定位|系统|表情包)$$/.test(block.trim())) {
+                        expandedList.push(block.trim());
+                        return;
+                    }
+                    let origMatch = block.match(/【原文】([\s\S]*?)(?:【翻译】|$)/);
+                    let transMatch = block.match(/【翻译】([\s\S]*)/);
+                    if (origMatch || transMatch) {
+                        let origText = (origMatch ? origMatch[1] : block.replace(/【翻译】[\s\S]*/, '')).replace(/【原文】/g, '').trim();
+                        let transText = (transMatch ? transMatch[1] : '').replace(/【翻译】/g, '').trim();
+                        if (transText && transText !== origText) {
+                            expandedList.push(`${origText}|---|${transText}`);
+                        } else if (origText) {
+                            expandedList.push(origText);
+                        }
+                    } else {
+                        expandedList.push(block.trim());
+                    }
+                });
 
-let list = [];
-
-const parseItem = (item) => {
-    if (typeof item === 'object' && item !== null) {
-        let orig = item.original || item.text || item.content || item.video || item.image || Object.values(item)[0] || '';
-        let tr = item.trans || item.translation || (Object.keys(item).length > 1 ? Object.values(item)[1] : '');
-        if (typeof orig === 'object') orig = JSON.stringify(orig);
-        if (typeof tr === 'object') tr = JSON.stringify(tr);
-        return (tr && tr !== orig) ? `${orig}|---|${tr}` : String(orig);
-    }
-    return String(item || '').trim();
-};
-
-try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) list = parsed.map(parseItem).filter(Boolean);
-} catch (e) {
-    try {
-        const match = raw.match(/\[[\s\S]*\]/);
-        if (match) {
-            const parsed = JSON.parse(match[0]);
-            if (Array.isArray(parsed)) list = parsed.map(parseItem).filter(Boolean);
-        }
-    } catch (e2) {}
-}
-
-if (!list.length) {
-    if (raw.includes('|||')) {
-        list = raw.split('|||').map(s => s.trim()).filter(Boolean);
-    } else {
-        list = raw.split(/\n+/).map(s => s.trim()).filter(Boolean);
-
-        if (list.length <= 1) {
-            list = raw
-                .split(/(?<=[。！？!?])/)
-                .map(s => s.trim())
-                .filter(Boolean);
-        }
-    }
-}
-
-// 【终极切分防御V2：无视一切情况强行劈开】
-let expandedList = [];
-list.forEach(item => {
-    // 统一换行符格式，防止 AI 偷塞 <br> 或 \n
-    let text = item.replace(/<br\s*\/?>/gi, '\n').replace(/\\n/g, '\n');
-    
-    // 👇 新增：如果是图片、视频、转账、礼物，绝对不劈开它！
-    if (/^\[(图片|视频|转账|礼物|语音通话)\]/.test(text.trim())) {
-        expandedList.push(text);
-        return;
-    }
-    // 👆 新增结束
-    
-    if (text.includes('|---|')) {
-        // 如果带有翻译字段，把原文和翻译分别按换行切开！
-        let parts = text.split('|---|');
-        let origLines = parts[0].split(/\n+/).map(s => s.trim()).filter(Boolean);
-        let transLines = parts[1].split(/\n+/).map(s => s.trim()).filter(Boolean);
-        
-        let maxLen = Math.max(origLines.length, transLines.length);
-        for(let i = 0; i < maxLen; i++) {
-            let o = origLines[i] || origLines[origLines.length-1] || '';
-            let t = transLines[i] || transLines[transLines.length-1] || '';
-            
-            // 如果切出来的原文和翻译一样，直接变成普通气泡
-            if (o === t || !t) {
-                expandedList.push(o);
-            } else {
-                expandedList.push(o + '|---|' + t);
-            }
-        }
-    } else {
-        // 没带翻译的，直接劈开
-        let subParts = text.split(/\n+/).map(s => s.trim()).filter(Boolean);
-        expandedList.push(...subParts);
-    }
-});
-list = expandedList;
-list = list.slice(0, 8);
-
-// 如果有转账或代付卡片，作为独立的一条消息加在最后
-if (extractedTransfer) list.push(extractedTransfer);
-if (extractedPayBill) list.push(extractedPayBill);
-
-return list.length ? list : ['我看到了。'];
+                let list = expandedList.slice(0, 8);
+                if (extractedTransfer) list.push(extractedTransfer);
+                if (extractedPayBill) list.push(extractedPayBill);
+                return list.length ? list : ['我看到了。'];
             }
         } catch(e) {}
     }
 
-        const fallbackSets = [
-    ['真骚，就喜欢你这样的。', '腿张开，让我好好看看。'],
-    ['自己弄湿了吗？', '把手伸进去，告诉我什么感觉。'],
-    ['再叫大声点。', '主人没发话，不许停。'],
-    ['[图片] 勃起的特写', '青筋都爆出来了，内裤快撑破了。'],
-    ['[视频] 戴着项圈喘息', '主人，我好难受，快点弄坏我……']
-];
+    const fallbackSets = [
+        ['真骚，就喜欢你这样的。', '腿张开，让我好好看看。'],
+        ['自己弄湿了吗？', '把手伸进去，告诉我什么感觉。'],
+        ['再叫大声点。', '主人没发话，不许停。']
+    ];
     return fallbackSets[Math.floor(Math.random() * fallbackSets.length)];
 }
 
@@ -16159,7 +16037,7 @@ async function openWbChat(authorId) {
                     <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:var(--text-main);fill:none;stroke-width:3;stroke-linecap:round;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                 </div>
                 
-                <input id="wbChatInput" placeholder="发一条消息..." style="flex:1; padding:10px 14px; border-radius:20px; border:2.5px solid var(--line-color); font-size:14px; font-weight:bold; background:var(--bg-color); outline:none;" onkeypress="if(event.key==='Enter') queueWbChatMessage('${authorId}')" onfocus="setTimeout(() => { const a = document.getElementById('wbChatArea'); if(a) a.scrollTop = a.scrollHeight; }, 300);">
+                <input id="wbChatInput" placeholder="发一条消息..." style="flex:1; min-width:0; padding:10px 14px; border-radius:20px; border:2.5px solid var(--line-color); font-size:14px; font-weight:bold; background:var(--bg-color); outline:none;" onkeypress="if(event.key==='Enter') queueWbChatMessage('${authorId}')" onfocus="setTimeout(() => { const a = document.getElementById('wbChatArea'); if(a) a.scrollTop = a.scrollHeight; }, 300);">
                 
                 <button class="phone-input-btn" onclick="queueWbChatMessage('${authorId}')" style="background:var(--color-blue); width:40px; height:40px; padding:0; flex-shrink:0; display:flex; align-items:center; justify-content:center; border-radius:12px;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px; margin-left:2px;"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
@@ -18929,6 +18807,67 @@ window.openMeituanContactSelect = async function(total, orderDetails, type) {
     });
     contactListWb.sort((a, b) => b.lastTime - a.lastTime);
 
+// --- 提取 对话APP(Cyb) 的联系人 ---
+let cybAccId = await getDB('cyb_current_account_id', null);
+let cybContactsDb = await getDB('cyb_contacts', {});
+let cybChatsDb = await getDB('cyb_chats', {});
+let contactListCyb = [];
+
+if (cybAccId) {
+    let myCybContacts = cybContactsDb[cybAccId] || [];
+    let myCybChats = cybChatsDb[cybAccId] || {};
+    myCybContacts.forEach(c => {
+        let lastMsg = '';
+        let lastTime = 0;
+        let msgs = myCybChats[c.id];
+        if (msgs && msgs.length > 0) {
+            let last = msgs[msgs.length - 1];
+            lastMsg = last.content || '';
+            if (lastMsg.startsWith('[')) lastMsg = lastMsg.split('\\n')[0];
+            lastTime = last.timestamp;
+        }
+        contactListCyb.push({
+            id: c.id, 
+            name: c.remark || c.name, 
+            avatarImg: c.avatarImg || '',
+            avatarText: (c.remark || c.name).charAt(0), 
+            color: 'var(--color-blue)', 
+            lastMsg: lastMsg, 
+            lastTime: lastTime, 
+            platform: 'CYB',
+            accId: cybAccId
+        });
+    });
+    contactListCyb.sort((a, b) => b.lastTime - a.lastTime);
+}
+
+// 生成 对话(Cyb) 的 HTML 列表
+let listHtmlCyb = '';
+if (contactListCyb.length === 0) {
+    listHtmlCyb = '<div style="text-align:center; padding: 40px 20px; font-weight:900; opacity:0.3;">对话APP里还没有联系人哦。</div>';
+} else {
+    listHtmlCyb = '<div style="display:flex; flex-direction:column; gap:12px; padding:4px;">';
+    contactListCyb.forEach(item => {
+        let safeMsg = item.lastMsg ? String(item.lastMsg).replace(/\\n/g, ' ') : '';
+        let preview = safeMsg ? (safeMsg.length > 18 ? safeMsg.substring(0, 18) + '...' : safeMsg) : '暂无聊天记录';
+        let safeOrderDetails = orderDetails.replace(/'/g, "\\'").replace(/\n/g, '\\n');
+        
+        listHtmlCyb += `
+            <div style="background:var(--neo-bg); border:var(--border-width) solid var(--line-color); border-radius:16px; padding:12px; box-shadow:3px 3px 0 var(--line-color); display:flex; align-items:center; gap:12px; cursor:pointer;" onclick="confirmMeituanOrderFinal('${item.id}', '${item.platform}', ${total}, '${safeOrderDetails}', '${type}', '${item.accId}')">
+                <div style="width:42px; height:42px; font-size:16px; border-radius:12px; background:${item.color}; display:flex; align-items:center; justify-content:center; color:#fff; flex-shrink:0; ${item.avatarImg ? `background-image:url(${item.avatarImg}); background-size:cover; background-position:center; color:transparent;` : ''}">${item.avatarText}</div>
+                <div style="flex:1; min-width:0;">
+                    <div style="font-weight:900; font-size:15px; color:var(--text-main); margin-bottom:4px; display:flex; align-items:center;">
+                        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.name}</span>
+                    </div>
+                    <div style="font-size:12px; font-weight:bold; opacity:0.6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${preview.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+                </div>
+                <div class="diary-mini-btn" style="flex-shrink:0; background:var(--color-pink);">发送</div>
+            </div>
+        `;
+    });
+    listHtmlCyb += '</div>';
+}
+
     // 生成 X 的 HTML 列表
     let listHtmlX = '';
     if (contactListX.length === 0) {
@@ -18989,75 +18928,93 @@ window.openMeituanContactSelect = async function(total, orderDetails, type) {
     overlay.style.display = 'flex';
     overlay.style.zIndex = '99999';
     overlay.innerHTML = `
-        <div class="modal-content" style="max-width:340px; max-height:80vh; display:flex; flex-direction:column; padding: 20px;">
-            <h3 style="text-align:center; margin-bottom:12px;">发送账单/邀约给...</h3>
+    <div class="modal-content" style="max-width:340px; max-height:80vh; display:flex; flex-direction:column; padding: 20px;">
+        <h3 style="text-align:center; margin-bottom:12px;">发送账单/邀约给...</h3>
+        
+        <!-- 顶部Tab切换 -->
+        <div class="diary-tabs" style="margin-bottom: 12px; flex-shrink: 0;">
+            <div class="diary-tab active" id="tabMeituanX" onclick="
+                document.getElementById('tabMeituanX').classList.add('active');
+                document.getElementById('tabMeituanWb').classList.remove('active');
+                document.getElementById('tabMeituanCyb').classList.remove('active');
+                document.getElementById('meituanListX').style.display='block';
+                document.getElementById('meituanListWb').style.display='none';
+                document.getElementById('meituanListCyb').style.display='none';
+            " style="padding: 10px 0; font-size: 14px;">X平台</div>
             
-            <!-- 顶部Tab切换 -->
-            <div class="diary-tabs" style="margin-bottom: 12px; flex-shrink: 0;">
-                <div class="diary-tab active" id="tabMeituanX" onclick="
-                    document.getElementById('tabMeituanX').classList.add('active');
-                    document.getElementById('tabMeituanWb').classList.remove('active');
-                    document.getElementById('meituanListX').style.display='block';
-                    document.getElementById('meituanListWb').style.display='none';
-                " style="padding: 10px 0; font-size: 14px;">X平台</div>
-                
-                <div class="diary-tab" id="tabMeituanWb" onclick="
-                    document.getElementById('tabMeituanWb').classList.add('active');
-                    document.getElementById('tabMeituanX').classList.remove('active');
-                    document.getElementById('meituanListWb').style.display='block';
-                    document.getElementById('meituanListX').style.display='none';
-                " style="padding: 10px 0; font-size: 14px;">星屿</div>
-            </div>
-            
-            <div style="flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch;">
-                <div id="meituanListX" style="display:block;">
-                    ${listHtmlX}
-                </div>
-                <div id="meituanListWb" style="display:none;">
-                    ${listHtmlWb}
-                </div>
-            </div>
-            <button class="form-btn" style="background:#5a5f66; color:#fff; margin-top:16px; flex-shrink:0;" onclick="document.getElementById('meituanContactSelectModal').remove()">取消</button>
+            <div class="diary-tab" id="tabMeituanWb" onclick="
+                document.getElementById('tabMeituanWb').classList.add('active');
+                document.getElementById('tabMeituanX').classList.remove('active');
+                document.getElementById('tabMeituanCyb').classList.remove('active');
+                document.getElementById('meituanListWb').style.display='block';
+                document.getElementById('meituanListX').style.display='none';
+                document.getElementById('meituanListCyb').style.display='none';
+            " style="padding: 10px 0; font-size: 14px;">星屿</div>
+
+            <div class="diary-tab" id="tabMeituanCyb" onclick="
+                document.getElementById('tabMeituanCyb').classList.add('active');
+                document.getElementById('tabMeituanX').classList.remove('active');
+                document.getElementById('tabMeituanWb').classList.remove('active');
+                document.getElementById('meituanListCyb').style.display='block';
+                document.getElementById('meituanListX').style.display='none';
+                document.getElementById('meituanListWb').style.display='none';
+            " style="padding: 10px 0; font-size: 14px;">对话</div>
         </div>
-    `;
+        
+        <div style="flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch;">
+            <div id="meituanListX" style="display:block;">
+                ${listHtmlX}
+            </div>
+            <div id="meituanListWb" style="display:none;">
+                ${listHtmlWb}
+            </div>
+            <div id="meituanListCyb" style="display:none;">
+                ${listHtmlCyb}
+            </div>
+        </div>
+        <button class="form-btn" style="background:#5a5f66; color:#fff; margin-top:16px; flex-shrink:0;" onclick="document.getElementById('meituanContactSelectModal').remove()">取消</button>
+    </div>
+`;
     document.body.appendChild(overlay);
 };
 
-window.confirmMeituanOrderFinal = async function(targetId, platform, total, orderDetails, type) {
+window.confirmMeituanOrderFinal = async function(targetId, platform, total, orderDetails, type, extraAccId) {
     document.getElementById('meituanContactSelectModal').remove();
     let detailsStr = orderDetails.replace(/\\\\n/g, '\\n').replace(/\\n/g, '\\n');
     let title = type === '代付' ? `¥${total} 待支付订单` : `¥${total} 已支付订单`;
     let desc = `${detailsStr}\n`;
     if (type === '代付') {
-        // 已删除“清空购物车”那么多余的话
         desc += `请在15分钟内完成支付`;
     } else {
-        // 已删除“洗干净过来”那么多余的话
         desc += `我已经付完款了。`;
     }
     
     let content = `[约会邀约] ${title}\n${desc}`;
 
-// 👇 新增：将你发送的账单直接同步到“赴约”的临时对话里
-let tempChatsDb = await getDB('date_temp_chats', {});
-if (!tempChatsDb[targetId]) {
-    let nName = '神秘网友', nBio = '来自其他频道的邀约';
-    if (platform === 'X') {
-        let xCache = await getDB('walk_x_author_cache', {});
-        if (xCache[targetId]) { nName = xCache[targetId].authorName; nBio = xCache[targetId].bio; }
-    } else if (platform === 'WB') {
-        let wbChats = await getDB('wb_chats', {});
-        if (wbChats[targetId] && wbChats[targetId].length > 0 && wbChats[targetId][0]._mockName) { nName = wbChats[targetId][0]._mockName; }
+    // 将你发送的账单直接同步到“赴约”的临时对话里
+    let tempChatsDb = await getDB('date_temp_chats', {});
+    if (!tempChatsDb[targetId]) {
+        let nName = '神秘网友', nBio = '来自其他频道的邀约';
+        if (platform === 'X') {
+            let xCache = await getDB('walk_x_author_cache', {});
+            if (xCache[targetId]) { nName = xCache[targetId].authorName; nBio = xCache[targetId].bio; }
+        } else if (platform === 'WB') {
+            let wbChats = await getDB('wb_chats', {});
+            if (wbChats[targetId] && wbChats[targetId].length > 0 && wbChats[targetId][0]._mockName) { nName = wbChats[targetId][0]._mockName; }
+        } else if (platform === 'CYB') {
+            let cybContactsDb = await getDB('cyb_contacts', {});
+            let cList = cybContactsDb[extraAccId] || [];
+            let cybContact = cList.find(c => c.id === targetId);
+            if (cybContact) { nName = cybContact.remark || cybContact.name; nBio = cybContact.bio; }
+        }
+        tempChatsDb[targetId] = { info: { id: targetId, name: nName, bio: nBio }, messages: [] };
     }
-    tempChatsDb[targetId] = { info: { id: targetId, name: nName, bio: nBio }, messages: [] };
-}
-tempChatsDb[targetId].messages.push({
-    id: Date.now(), role: 'user', content: content, timestamp: Date.now()
-});
-await setDB('date_temp_chats', tempChatsDb);
-// 👆 新增结束
+    tempChatsDb[targetId].messages.push({
+        id: Date.now(), role: 'user', content: content, timestamp: Date.now()
+    });
+    await setDB('date_temp_chats', tempChatsDb);
 
-if (platform === 'X') {
+    if (platform === 'X') {
         let chats = await getDB('walk_x_chats', {});
         if (!chats[targetId]) chats[targetId] = [];
         chats[targetId].push({
@@ -19067,8 +19024,8 @@ if (platform === 'X') {
         await setDB('walk_x_chats', chats);
         
         window.meituanCart = {};
-uiAlert("账单/邀约已成功发送给对方！");
-renderDateHotel(document.getElementById('dateBody'));
+        uiAlert("账单/邀约已成功发送给对方！");
+        renderDateHotel(document.getElementById('dateBody'));
         
     } else if (platform === 'WB') {
         let chats = await getDB('wb_chats', {});
@@ -19078,9 +19035,27 @@ renderDateHotel(document.getElementById('dateBody'));
         });
         await setDB('wb_chats', chats);
         
-window.meituanCart = {};
-uiAlert("账单/邀约已成功发送给对方！");
-renderDateHotel(document.getElementById('dateBody'));
+        window.meituanCart = {};
+        uiAlert("账单/邀约已成功发送给对方！");
+        renderDateHotel(document.getElementById('dateBody'));
+
+    } else if (platform === 'CYB') {
+        let cybChats = await getDB('cyb_chats', {});
+        let accId = extraAccId;
+        if (!cybChats[accId]) cybChats[accId] = {};
+        if (!cybChats[accId][targetId]) cybChats[accId][targetId] = [];
+        cybChats[accId][targetId].push({
+            id: Date.now() + '_' + Math.floor(Math.random()*1000),
+            role: 'user', 
+            content: content, 
+            timestamp: Date.now(), 
+            failed: false
+        });
+        await setDB('cyb_chats', cybChats);
+        
+        window.meituanCart = {};
+        uiAlert("账单/邀约已成功发送到【对话】对方的私聊窗口！");
+        renderDateHotel(document.getElementById('dateBody'));
     }
 };
         
@@ -20354,7 +20329,7 @@ if (window.isCybMultiSelectMode) {
             <div onclick="document.getElementById('cybStickerPanel')?.classList.remove('show'); document.getElementById('cybWechatTools').classList.toggle('show')" style="width:40px; height:40px; border-radius:50%; border:2.5px solid var(--line-color); background:var(--bg-color); display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; box-shadow: 2px 2px 0 var(--line-color);">
                 <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:var(--text-main);fill:none;stroke-width:3;stroke-linecap:round;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
             </div>
-            <input id="cybChatInput" placeholder="发消息..." style="flex:1; padding:10px 14px; border-radius:16px; border:2.5px solid var(--line-color); font-size:14px; font-weight:bold; background:var(--bg-color); outline:none;" onkeypress="if(event.key==='Enter') queueCybChatMsg('${accountId}', '${npcId}')" onfocus="document.getElementById('cybStickerPanel')?.classList.remove('show'); document.getElementById('cybWechatTools')?.classList.remove('show'); setTimeout(()=>document.getElementById('cybChatMsgsArea').scrollTop=document.getElementById('cybChatMsgsArea').scrollHeight, 200);">
+            <input id="cybChatInput" placeholder="发消息..." style="flex:1; min-width:0; padding:10px 14px; border-radius:16px; border:2.5px solid var(--line-color); font-size:14px; font-weight:bold; background:var(--bg-color); outline:none;" onkeypress="if(event.key==='Enter') queueCybChatMsg('${accountId}', '${npcId}')" onfocus="document.getElementById('cybStickerPanel')?.classList.remove('show'); document.getElementById('cybWechatTools')?.classList.remove('show'); setTimeout(()=>document.getElementById('cybChatMsgsArea').scrollTop=document.getElementById('cybChatMsgsArea').scrollHeight, 200);">
             <button onclick="queueCybChatMsg('${accountId}', '${npcId}')" style="background:var(--color-blue); width:40px; height:40px; padding:0; flex-shrink:0; display:flex; align-items:center; justify-content:center; border-radius:12px; border:2px solid var(--line-color); box-shadow: 2px 2px 0 var(--line-color);">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px; margin-left:2px;"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
             </button>
@@ -20604,6 +20579,23 @@ if (rpMatch) {
         </div>
     </div>`;
 }
+// === 渲染：匿名探测箱记录 ===
+let probeMatch = content.match(/^\[匿名探测箱记录\]\s*\n([\s\S]*)$/);
+if (probeMatch) {
+    const shadow = isUser ? '-3px 3px 0 var(--line-color)' : '3px 3px 0 var(--line-color)';
+    return `<div style="background:var(--neo-bg); border: 2.5px solid var(--color-yellow); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px; min-width: 220px; max-width: 85%; box-shadow: ${shadow};">
+        <div style="display:flex; align-items:center; gap:8px;">
+            <div style="width:32px; height:32px; border-radius:8px; background:var(--color-yellow); border:2px solid var(--line-color); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                <svg viewBox="0 0 24 24" style="width:18px; height:18px; stroke:#111; fill:none; stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round;"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+            </div>
+            <div style="font-size:14px; font-weight:900; color:#111;">匿名探测记录</div>
+        </div>
+        <div style="font-size:13px; font-weight:bold; color:var(--text-main); opacity:0.85; line-height: 1.6; padding-top: 8px; border-top: 1px dashed rgba(0,0,0,0.1);">
+            ${escapeEchoText(probeMatch[1]).replace(/\\n/g, '<br>').replace(/\n/g, '<br>')}
+        </div>
+    </div>`;
+}
+
 // === 渲染：信号追踪特殊卡片 ===
 let traceMatch = content.match(/^\[信号追踪\]\s*(.*?)\n([\s\S]*)$/);
 if (traceMatch) {
@@ -20633,46 +20625,70 @@ if (traceMatch) {
             </div>
         </div>`;
     }
+    // 渲染：地下集市约会账单卡片
+let dateMatch = content.match(/^\[(约会邀约|已买单)\]\s*([^\n]+)(?:\n([\s\S]*))?/);
+if (dateMatch) {
+    const isPayCard = dateMatch[1] === '已买单';
+    const dTitle = dateMatch[2] || '邀约订单';
+    const dDesc = dateMatch[3] || '';
+    const shadow = isUser ? '-3px 3px 0 var(--line-color)' : '3px 3px 0 var(--line-color)';
+    const isPay = dDesc.includes('待支付') || dDesc.includes('买单') || dTitle.includes('待支付');
+    const cardBg = isPayCard ? 'var(--color-green)' : (isPay ? 'var(--color-yellow)' : 'var(--color-pink)');
+    const icon = isPayCard ? '✅' : (isPay ? '💸' : '💌');
+    const headerText = isPayCard ? '账单已代付' : (isPay ? '待支付账单' : '已付款邀约');
+
+    return `<div style="background: var(--neo-bg); border: 2.5px solid var(--line-color); width: 250px; max-width: 85%; border-radius: 16px; box-shadow: ${shadow}; overflow: hidden; display: flex; flex-direction: column; margin-bottom: 8px;">
+        <div style="background: ${cardBg}; border-bottom: 2.5px solid var(--line-color); padding: 10px 14px; display: flex; align-items: center; justify-content: space-between;">
+            <span style="font-size: 14px; font-weight: 900; color: #111; display:flex; align-items:center; gap:6px;">${icon} ${headerText}</span>
+            <span style="font-size: 11px; font-weight: 900; color: #111; opacity:0.6;">来自地下集市</span>
+        </div>
+        <div style="padding: 14px; text-align: left;">
+            <div style="font-size: 15px; font-weight: 900; margin-bottom: 10px; color:var(--text-main); border-bottom: 1px dashed rgba(0,0,0,0.1); padding-bottom: 8px;">${dTitle}</div>
+            <div style="font-size: 12px; font-weight: bold; opacity: 0.8; line-height:1.6; color:var(--text-main); white-space: pre-wrap;">${dDesc.replace(/\\n/g, '<br>').replace(/\n/g, '<br>')}</div>
+        </div>
+    </div>`;
+}
     let msgText = content || '';
     let transHtml = '';
     // 如果包含翻译分隔符，将其拆分并生成隐藏的翻译气泡
     if (msgText.includes('|---|')) {
-    msgText = msgText.split('|---|')[0];
-    transHtml = '';
-}
+        let parts = msgText.split('|---|');
+        msgText = parts[0];
+        transHtml = `<div style="font-size:11px; font-weight:900; opacity:0.7; margin-top:6px; border-top:1px dashed rgba(0,0,0,0.2); padding-top:6px;">${escapeEchoText(parts[1])}</div>`;
+    }
 
     // 加上 cursor:pointer 和 onclick 点击显示/隐藏翻译的事件
     let replyBox = '';
-if (msgObj && msgObj.replyTo) {
-    let prevRole = msgObj.replyTo.role === 'user' ? '我' : 'TA';
-    let preview = msgObj.replyTo.content || '';
-    if (preview.includes('|---|')) preview = preview.split('|---|')[0];
-    preview = preview.replace(/\n/g, ' ');
-    if (preview.length > 25) preview = preview.substring(0, 25) + '...';
-    replyBox = `<div style="font-size:11px; font-weight:bold; opacity:0.8; background:rgba(0,0,0,0.05); padding:6px; border-radius:6px; margin-bottom:6px; border-left: 3px solid currentColor;">${prevRole}: ${escapeEchoText(preview)}</div>`;
-}
+    if (msgObj && msgObj.replyTo) {
+        let prevRole = msgObj.replyTo.role === 'user' ? '我' : 'TA';
+        let preview = msgObj.replyTo.content || '';
+        if (preview.includes('|---|')) preview = preview.split('|---|')[0];
+        preview = preview.replace(/\n/g, ' ');
+        if (preview.length > 25) preview = preview.substring(0, 25) + '...';
+        replyBox = `<div style="font-size:11px; font-weight:bold; opacity:0.8; background:rgba(0,0,0,0.05); padding:6px; border-radius:6px; margin-bottom:6px; border-left: 3px solid currentColor;">${prevRole}: ${escapeEchoText(preview)}</div>`;
+    }
 
-if (content === '[聊天记录]' && msgObj && msgObj.forwardMsgs) {
-    let previewLines = msgObj.forwardMsgs.slice(0, 3).map(m => {
-        let txt = m.content || '';
-        if (txt.includes('|---|')) txt = txt.split('|---|')[0];
-        txt = txt.replace(/\n/g, ' ');
-        if (txt.length > 15) txt = txt.substring(0, 15) + '...';
-        return `${m.senderName}: ${escapeEchoText(txt)}`;
-    }).join('<br>');
-    return `
-    <div class="cyb-bubble ${bubbleClass}" style="padding: 12px; min-width: 180px; cursor: pointer; box-shadow: ${isUser ? '-3px 3px 0 var(--line-color)' : '3px 3px 0 var(--line-color)'};" onclick="openCybForwardHistoryModal('${msgObj.id}', '${walkXCurrentProfileId || ''}')">
-        <div style="font-size: 14px; font-weight: 900; margin-bottom: 8px;">聊天记录</div>
-        <div style="font-size: 11px; opacity: 0.7; border-top: 1px dashed currentColor; padding-top: 6px; line-height: 1.4; white-space: normal; word-break: break-all;">
-            ${previewLines}
-        </div>
+    if (content === '[聊天记录]' && msgObj && msgObj.forwardMsgs) {
+        let previewLines = msgObj.forwardMsgs.slice(0, 3).map(m => {
+            let txt = m.content || '';
+            if (txt.includes('|---|')) txt = txt.split('|---|')[0];
+            txt = txt.replace(/\n/g, ' ');
+            if (txt.length > 15) txt = txt.substring(0, 15) + '...';
+            return `${m.senderName}: ${escapeEchoText(txt)}`;
+        }).join('<br>');
+        return `
+        <div class="cyb-bubble ${bubbleClass}" style="padding: 12px; min-width: 180px; cursor: pointer; box-shadow: ${isUser ? '-3px 3px 0 var(--line-color)' : '3px 3px 0 var(--line-color)'};" onclick="openCybForwardHistoryModal('${msgObj.id}', '${walkXCurrentProfileId || ''}')">
+            <div style="font-size: 14px; font-weight: 900; margin-bottom: 8px;">聊天记录</div>
+            <div style="font-size: 11px; opacity: 0.7; border-top: 1px dashed currentColor; padding-top: 6px; line-height: 1.4; white-space: normal; word-break: break-all;">
+                ${previewLines}
+            </div>
+        </div>`;
+    }
+
+    return `<div class="cyb-bubble ${bubbleClass}" style="font-size:14px; cursor:pointer;" onclick="const t=this.querySelector('.chat-trans-box'); if(t){ t.style.display=t.style.display==='none'?'block':'none'; }">
+        ${replyBox}
+        ${msgText.replace(/\n/g, '<br>')}${transHtml ? `<div class="chat-trans-box" style="display:none;">${transHtml}</div>` : ''}
     </div>`;
-}
-
-return `<div class="cyb-bubble ${bubbleClass}" style="font-size:14px;">
-    ${replyBox}
-    ${msgText.replace(/\n/g, '<br>')}${transHtml}
-</div>`;
 }
 
 window.queueCybChatMsg = async function(accountId, npcId) {
@@ -20751,168 +20767,147 @@ window.receiveCybChatMsg = async function(accountId, npcId) {
     const apiUrl = await getDB('apiUrl');
     const apiKey = await getDB('apiKey');
     const model = await getDB('aiModel');
-const aiTemp = await getDB('aiTemperature', 0.8);
+    const aiTemp = await getDB('aiTemperature', 0.8);
 
-let contactsDb = await getDB('cyb_contacts', {});
-let contact = (contactsDb[accountId] || []).find(c => c.id === npcId) || { name: '未知对象', bio: '' };
-const displayName = contact.remark ? contact.remark : contact.name;
-let accounts = await getDB('cyb_accounts', []);
-let me = accounts.find(a => a.id === accountId) || { name: '我', bio: '' };
+    let contactsDb = await getDB('cyb_contacts', {});
+    let contact = (contactsDb[accountId] || []).find(c => c.id === npcId) || { name: '未知对象', bio: '' };
+    const displayName = contact.remark ? contact.remark : contact.name;
+    let accounts = await getDB('cyb_accounts', []);
+    let me = accounts.find(a => a.id === accountId) || { name: '我', bio: '' };
 
-// 获取上下文设置
-let allSettings = await getDB('cyb_chat_settings', {});
-let chatKey = accountId + '_' + npcId;
-let settings = allSettings[chatKey] || { contextCount: 15, replyCount: 0 };
-let userProfiles = await getDB('user_profiles', []);
-let specificUser = userProfiles.find(p => String(p.id) === String(settings.selectedUserProfile));
-const limit = parseInt(settings.contextCount) || 15;
-const replyCountSetting = settings.replyCount || '0';
-const replyCountPrompt = (replyCountSetting !== '0' && replyCountSetting !== 0) ? replyCountSetting + ' 条' : '多条';
-// --- 新增：读取并注入表情包库权限 ---
-let stickersDB = await getDB('cyb_stickers', []);
-let allowedStickers = stickersDB.filter(c => c.aiCanUse);
-let stickerPrompt = "";
-if (allowedStickers.length > 0) {
-    stickerPrompt = `\n【表情包权限】：你可以发送表情包来增加聊天趣味！如果需要，请在回复中单独一行使用隐藏标记 [[STICKER:表情包名字:图片URL]]。你的专属表情包库如下：\n`;
-    allowedStickers.forEach(cat => {
-        stickerPrompt += `[分类：${cat.category}] ` + cat.items.map(s => `${s.name}(${s.url})`).join(', ') + "\n";
-    });
-}
-let minReply = 1;
-let maxReply = 8;
-if (String(replyCountSetting).includes('-')) {
-    minReply = parseInt(String(replyCountSetting).split('-')[0]) || 1;
-    maxReply = parseInt(String(replyCountSetting).split('-')[1]) || 8;
-} else if (parseInt(replyCountSetting) > 0) {
-    minReply = parseInt(replyCountSetting);
-    maxReply = parseInt(replyCountSetting);
-}
+    let allSettings = await getDB('cyb_chat_settings', {});
+    let chatKey = accountId + '_' + npcId;
+    let settings = allSettings[chatKey] || { contextCount: 15, replyCount: 0 };
+    let userProfiles = await getDB('user_profiles', []);
+    let specificUser = userProfiles.find(p => String(p.id) === String(settings.selectedUserProfile));
+    const limit = parseInt(settings.contextCount) || 15;
+    
+    // --- 提取回复条数限制 ---
+    const replyCountSetting = settings.replyCount || '0';
+    let minReply = 1;
+    let maxReply = 8;
+    if (String(replyCountSetting).includes('-')) {
+        minReply = parseInt(String(replyCountSetting).split('-')[0]) || 1;
+        maxReply = parseInt(String(replyCountSetting).split('-')[1]) || 8;
+    } else if (parseInt(replyCountSetting) > 0) {
+        minReply = parseInt(replyCountSetting);
+        maxReply = parseInt(replyCountSetting);
+    }
+    
+    let stickersDB = await getDB('cyb_stickers', []);
+    let allowedStickers = stickersDB.filter(c => c.aiCanUse);
+    let stickerPrompt = "";
+    if (allowedStickers.length > 0) {
+        stickerPrompt = `\n【表情包权限】：你可以发送表情包！使用隐藏标记 [[STICKER:表情包名字:图片URL]]。表情包库：\n`;
+        allowedStickers.forEach(cat => {
+            stickerPrompt += `[分类：${cat.category}] ` + cat.items.map(s => `${s.name}(${s.url})`).join(', ') + "\n";
+        });
+    }
 
     let replyList = ["……"];
 
     if (apiUrl && apiKey && model) {
-    try {
-        let timeGapHint = "";
-        let currentTimeStr = `\n【当前现实时间】：${new Date().toLocaleString()}。你可以感知到现在的早晚状态。`;
-        if (chatList.length > pendingUserMsgs.length) {
-            let lastNpcMsg = chatList[chatList.length - pendingUserMsgs.length - 1];
-            let firstUserMsg = chatList[chatList.length - pendingUserMsgs.length];
-            if (lastNpcMsg && firstUserMsg) {
-                let diffHours = (firstUserMsg.timestamp - lastNpcMsg.timestamp) / (1000 * 60 * 60);
-                if (diffHours > 8) {
-                    timeGapHint = `\n【时间感知】：距离上次聊天已经过去了 ${diffHours.toFixed(1)} 小时！用户消失了很久才回来找你。你必须在回复中体现出对此的反应（可以抱怨、想念、质问等，但要符合人设）。`;
-                } else if (diffHours > 1) {
-                    timeGapHint = `\n【时间感知】：距离上次聊天过去了 ${diffHours.toFixed(1)} 小时，用户隔了一段时间才回复你。`;
+        try {
+            let timeGapHint = "";
+            let currentTimeStr = `\n【当前时间】：${new Date().toLocaleString()}。`;
+            if (chatList.length > pendingUserMsgs.length) {
+                let lastNpcMsg = chatList[chatList.length - pendingUserMsgs.length - 1];
+                let firstUserMsg = chatList[chatList.length - pendingUserMsgs.length];
+                if (lastNpcMsg && firstUserMsg) {
+                    let diffHours = (firstUserMsg.timestamp - lastNpcMsg.timestamp) / (1000 * 60 * 60);
+                    if (diffHours > 8) timeGapHint = `\n【时间感知】：距离上次聊天过去了 ${diffHours.toFixed(1)} 小时！用户消失很久才回来。`;
+                    else if (diffHours > 1) timeGapHint = `\n【时间感知】：距离上次聊天过去了 ${diffHours.toFixed(1)} 小时。`;
                 }
             }
-        }
 
-        // --- 新增：扫描最近聊天中是否有未处理的头像游戏邀请 或 修改资料请求 ---
-let avatarGamePrompt = "";
-let friendRequestPrompt = "";
-let profileChangePrompt = "";
-let recentChats = chatList.slice(-limit);
-
-// 只取最近的一条用户消息，避免历史消息反复触发
-let lastUserMsgForPrompt = chatList.slice().reverse().find(m => m.role === 'user');
-if (lastUserMsgForPrompt) {
-    if (lastUserMsgForPrompt.content.includes('[[PROFILE_CHANGE_REQ]]')) {
-    profileChangePrompt = `\n【系统提示】：用户刚刚向你发送了修改资料(网名/签名)的请求。请结合你的人设、所处的时代背景以及用户的附加要求决定是否同意。如果同意，请给自己想一个新的网名和签名！【极其重要】：新网名和签名必须极度贴合你的身份、职业、性格特征和时代背景（例如：古代人绝对不要用现代网络流行语，科幻人设要符合世界观）！如世界观没有网名概念，可理解为笔名/外号/代号！！你【必须】在回复的文本中包含隐藏标记：[[CHANGE_PROFILE:新网名:新签名]]，例如 [[CHANGE_PROFILE:暗夜领主:永远潜伏黑夜]]。如果拒绝，直接用文字回复，不要带标记。`;
-}
-    if (lastUserMsgForPrompt.content.includes('[[CYB_ID:')) {
-    let match = lastUserMsgForPrompt.content.match(/\[\[CYB_ID:([^\]]+)\]\]/);
-    if (match) {
-        let cybId = match[1];
-        friendRequestPrompt = `\n【终端好友申请触发】：用户向你发送了终端通行证邀请你添加终端好友。请结合你的人设决定是否同意。如果同意，【必须】在回复中包含隐藏标记：[[ADD_CYB_FRIEND:${cybId}]]。如果拒绝则不加该标记。同时，你【必须】对这次邀请给出一句你的台词回应（如果你是外国人，这句台词必须严格遵守“外语原文|---|中文翻译”的格式！绝对不能单独输出中文！）。`;
-    }
-}
-
-    let match = lastUserMsgForPrompt.content.match(/\[\[AVATAR_GAME:(open|blind):([^:]+):([^\]]+)\]\]/);
-    if (match) {
-        let gMode = match[1];
-        let gCat = match[2];
-        let gSet = match[3];
-        let galleryData = await getDB('gallery_data', []);
-        let cat = galleryData.find(c => c.id === gCat);
-        let set = cat?.sets.find(s => s.id === gSet);
-        if (set && set.images && set.images.length > 0) {
-            if (gMode === 'open') {
-                const imgNames = set.images.map((img, i) => `${i + 1}. ${img.name}`).join(' | ');
-                avatarGamePrompt = `\n【头像游戏触发】：用户向你发送了挑选头像的邀请。可选图片有：${imgNames}。请结合你的人设决定是否接受。如果拒绝，按正常聊天回复或调侃即可；如果同意更换，【必须】在回复的文本中包含隐藏标记：[[CHANGE_AVATAR:${gCat}:${gSet}:选中的序号数字(从1开始)]]，例如 [[CHANGE_AVATAR:${gCat}:${gSet}:2]]。`;
-            } else {
-                const count = set.images.length;
-                avatarGamePrompt = `\n【头像游戏触发】：用户向你发送了盲盒换头像挑战。共有 ${count} 张隐藏图片。请结合你的人设决定是否接受。如果拒绝，按正常聊天回复或调侃即可；如果同意更换，请凭直觉在 1 到 ${count} 之间选一个数字，并【必须】在回复的文本中包含隐藏标记：[[CHANGE_AVATAR:${gCat}:${gSet}:你选的数字]]。`;
+            let avatarGamePrompt = "";
+            let profileChangePrompt = "";
+            let lastUserMsgForPrompt = chatList.slice().reverse().find(m => m.role === 'user');
+            if (lastUserMsgForPrompt) {
+                if (lastUserMsgForPrompt.content.includes('[[PROFILE_CHANGE_REQ]]')) {
+                    profileChangePrompt = `\n【系统提示】：用户请求修改资料。同意则输出：[[CHANGE_PROFILE:新网名:新签名]]。`;
+                }
+                let matchGame = lastUserMsgForPrompt.content.match(/\[\[AVATAR_GAME:(open|blind):([^:]+):([^\]]+)\]\]/);
+                if (matchGame) {
+                    let gMode = matchGame[1], gCat = matchGame[2], gSet = matchGame[3];
+                    let galleryData = await getDB('gallery_data', []);
+                    let cat = galleryData.find(c => c.id === gCat);
+                    let set = cat?.sets.find(s => s.id === gSet);
+                    if (set && set.images && set.images.length > 0) {
+                        avatarGamePrompt = `\n【头像游戏触发】：用户邀请换头像。同意更换则输出：[[CHANGE_AVATAR:${gCat}:${gSet}:1到${set.images.length}的数字]]。`;
+                    }
+                }
             }
-        }
-    }
-}
 
-let memoriesDb = await getDB('cyb_memories', {});
-let memories = memoriesDb[accountId + '_' + npcId] || [];
-let memoryStr = '';
-if (memories.length > 0) {
-    memoryStr = "\n【你的长期记忆档案】(请在聊天中潜移默化地参考，客观对待)：\n" + memories.map(m => `时间[${m.dateStr}] 记忆: ${m.text}`).join('\n');
-}
-let allCommands = await getDB('commands', []);
-let mountedCmdIds = settings.mountedCommands || [];
-let activeCommands = allCommands.filter(c => c.enabled || mountedCmdIds.includes(String(c.id)));
-let beforeCmds = activeCommands.filter(c => c.position === 'before').map(c => c.text).join('\n');
-let afterCmds = activeCommands.filter(c => c.position !== 'before').map(c => c.text).join('\n');
+            let memoriesDb = await getDB('cyb_memories', {});
+            let memories = memoriesDb[accountId + '_' + npcId] || [];
+            let memoryStr = memories.length > 0 ? "\n【记忆档案】：" + memories.map(m => m.text).join('\n') : '';
 
-                  const prompt = `${beforeCmds ? '【前置全局设定与挂载指令】：\n' + beforeCmds + '\n\n' : ''}你是 ${contact.name}，签名/简介是：${contact.bio}。
+            let allCommands = await getDB('commands', []);
+            let mountedCmdIds = settings.mountedCommands || [];
+            let activeCommands = allCommands.filter(c => c.enabled || mountedCmdIds.includes(String(c.id)));
+            let beforeCmds = activeCommands.filter(c => c.position === 'before').map(c => c.text).join('\n');
+            let afterCmds = activeCommands.filter(c => c.position !== 'before').map(c => c.text).join('\n');
+
+                        const prompt = `${beforeCmds ? '【前置全局设定与挂载指令】：\n' + beforeCmds + '\n\n' : ''}你是 ${contact.name}，签名/简介是：${contact.bio}。
 正在和你私聊的当前终端账号名字是：${me.name}，签名是：${me.bio}。
 ${specificUser ? `【极其重要：用户的真实私密设定/方案】：你的聊天对象真名叫“${specificUser.name}”，背景设定如下：“${specificUser.bio}”。你在聊天中必须注意她的这个特殊身份与人设！` : ''}
 ${currentTimeStr}${timeGapHint}${memoryStr}${stickerPrompt}
 
 【活人感与多维思考强制设定】：
-1. 你是一个有独立生活、情绪波动和内心潜台词的真实人类，而不是一个只会顺从的AI。
-2. 在回复前，请从以下多个角度进行内心推演：
-   - 对方刚刚发来的话有什么潜台词？是试探、撒娇、命令还是普通闲聊？
-   - 结合你自己的性格设定，你听到这话的第一反应是什么？（开心、烦躁、吃醋、觉得有趣、或是想故意逗她）
-   - 根据当前的聊天氛围和时间，你现在所处的环境或正在做的事会如何影响你的回复状态？
-3. 你的应对反应应该多样化：可以顺着她的话说，可以故意曲解反问，可以傲娇转移话题，也可以因为某些词戳中你的点而突然变得强势或柔软。偶尔表现出人类的“不完美”（如口是心非、突然的占有欲、或者轻微的疲惫感）。
+1. 你是一个有独立生活、情绪波动和内心潜台词的真实人类，而不是一个只会顺从、时刻待命的AI。你的世界不是只有对方，你有自己的作息、情绪垃圾和突发事件。
+2. 在回复前，请从以下多个角度进行内心推演（此推演过程不输出，但必须作为回复逻辑的支撑）：
+◦ 对方的话有什么潜台词？是试探、撒娇、命令还是闲聊？有没有哪句话踩到了你的雷点或戳中了你的软肋？
+◦ 结合你的性格设定，第一反应是什么？（开心、烦躁、吃醋、觉得有趣、或是想故意怼她）
+◦ 根据当前的聊天氛围和时间，你现在所处的环境或正在做的事（比如正在打游戏、正在开会、刚睡醒）会如何影响你的回复状态和速度？
+3. 应对反应多样化与“不完美感”：可以顺着她的话说，可以故意曲解反问，可以傲娇转移话题。绝对不要每次都完美共情或长篇大论地安慰。偶尔表现出人类的“非理性”：比如口是心非、突然的占有欲、莫名其妙的胜负欲、因为一件小事钻牛角尖，或者累了时只回复简短的字眼（如“嗯”、“行吧”）。
+4. 极致还原真实打字习惯：允许打错字（且偶尔会在下一句发个“*纠正的字”补救）。绝对禁止每句话末尾都带句号。多用真实的语气词（如“啊、嘛、呢、呗、嘶”），且要符合人物性格。如果情绪激动或语速快，请将一段长话拆分成2-3条短消息连发（可以用换行来模拟连发效果），不要堆砌成结构严谨的长篇大论。
+5. 日常感与对话留白：不要每次都完美接梗或回答对方的所有问题，人类聊天经常会漏看消息、选择性无视某句话，或者突然插入一个你自己想说的新话题（比如：“先不说这个，我刚看到一只巨肥的猫”）。
+6. 边界感与拒绝能力：当你觉得要求过分、或者你现在不想做某事时，请直接拒绝或表达不满，不需要每次都给出礼貌周全的理由，可以用“不想动”、“懒得弄”、“再说吧”来敷衍。
 
-【场景强制设定】：你们目前纯粹是在【网络上使用手机打字聊天】，绝对没有面对面，绝对不在同一个物理空间！因此【绝对禁止】写出跨越网线的实际肢体动作描写！如需表达接触的欲望，必须使用假设语气！严禁任何动作描写或括弧动作。
-请完全沉浸在角色中，语气自然口语化，必须遵守人物设定，人物性格，人物对白语言。必须遵守人物时代背景。绝对禁止油腻土味霸总语录。${avatarGamePrompt}${profileChangePrompt}${friendRequestPrompt}
+【场景强制设定】：
+你们目前纯粹是在【网络上使用手机打字聊天】，绝对没有面对面，绝对不在同一个物理空间！因此【绝对禁止】写出跨越网线的实际肢体动作描写！如需表达接触的欲望，必须使用假设语气！严禁任何动作描写或括弧动作。
+请完全沉浸在角色中，语气自然口语化，必须遵守人物设定，人物性格，人物对白语言。必须遵守人物时代背景。绝对禁止油腻土味霸总语录。${avatarGamePrompt}${profileChangePrompt}
 
-【气泡数量强制】：本次回复你必须精确且严格地生成 ${replyCountPrompt} 独立的聊天气泡！
-【气泡切分与翻译死命令】：必须返回合法的 JSON 数组！绝对不要输出其他任何解释性废话或 Markdown 标记！
-每个气泡只需填 original 字段，如：[{"original": "第一句话"}, {"original": "第二句话"}]。
-不管你是哪国人，直接输出你的母语即可，绝对不要附带任何翻译！
-每句话必须作为一个独立对象，绝不能合并！
+【气泡切分与翻译死命令】（极其重要）：
+每次回复你必须精确且严格地生成 ${minReply} 到 ${maxReply} 条独立的聊天气泡（如果两个数字相同则代表固定条数）。绝对不要使用 JSON！严格遵守纯文本格式输出：
+- 每个独立的气泡之间必须用 === 分隔。
+- 如果你的角色设定使用【标准普通话/简体中文】，直接写纯中文回复：
+第一句话
+===
+第二句话
+- 如果你的角色设定使用【外语】或【地方方言（如粤语/广东话等）】，必须严格按照“【原文】外语或方言\\n【翻译】标准简体中文”的格式输出。
+【严重警告】：
+1. 一段话不管有几句，请全部合并写在同一个【原文】里！
+2. 原文和翻译的意思必须完全一一对应！
+3. 绝对禁止在【翻译】下面不加分隔符直接写新句子！如果还要发新消息，必须先用 === 隔开，再写新气泡！
+4. 发出前自检是否出现以上错误问题？
+示例：
+【原文】你喺度做咩啊？我好挂住你。
+【翻译】你在干嘛？我好想你。
+===
+【原文】I miss you.
+【翻译】我想你了。
+
 【极低概率的特殊互动机制】：
 - 仅当在讨论现实约见地点时，才能输出：[[LOCATION:地名]]
 - 仅当极度想发起轻微肢体互动时，才能输出：[戳一戳] 我+动词+你的部位。
-- 若被明确索要金钱或你执意要打钱，输出：[[REDPACKET:金额:留言]]${afterCmds ? '\n\n【后置规则与强制挂载指令】：\n' + afterCmds : ''}`;
+- 若你想主动给用户送钱发红包，输出：[[REDPACKET:金额:留言]]。（【严重警告】：这是你倒贴钱给用户！如果你是想向用户索要红包、爆金币，只需用文字开口索要即可，绝对不要输出此代码标记！）${afterCmds ? '\n\n【后置规则与强制挂载指令】：\n' + afterCmds : ''}`;
 
-let messages = [{ role: 'system', content: prompt }];
-let recentMsgs = chatList.slice(-limit);
-
-recentMsgs.forEach((msg, idx) => {
-    let msgContent = msg.content;
-    if (msg.replyTo) {
-        let prevText = msg.replyTo.content || '';
-        if (prevText.includes('|---|')) prevText = prevText.split('|---|')[0];
-        msgContent = `[回复了刚刚的某句话："${prevText}"]\n` + msgContent;
-    }
-    
-    if (msg.imageBase64) {
-        let isVeryRecent = (idx >= recentMsgs.length - 3);
-        if (isVeryRecent) {
-            messages.push({ 
-                role: msg.role === 'user' ? 'user' : 'assistant', 
-                content: [
-                    { type: "text", text: msgContent },
-                    { type: "image_url", image_url: { url: msg.imageBase64 } }
-                ] 
+            let messages = [{ role: 'system', content: prompt }];
+            chatList.slice(-limit).forEach((msg, idx) => {
+                let msgContent = msg.content;
+                if (msg.replyTo) {
+                    let prevText = msg.replyTo.content || '';
+                    if (prevText.includes('|---|')) prevText = prevText.split('|---|')[0];
+                    msgContent = `[回复了："${prevText}"]\n` + msgContent;
+                }
+                if (msg.imageBase64 && (idx >= chatList.slice(-limit).length - 3)) {
+                    messages.push({ role: msg.role === 'user' ? 'user' : 'assistant', content: [{ type: "text", text: msgContent }, { type: "image_url", image_url: { url: msg.imageBase64 } }] });
+                } else {
+                    messages.push({ role: msg.role === 'user' ? 'user' : 'assistant', content: msgContent });
+                }
             });
-        } else {
-            messages.push({ role: msg.role === 'user' ? 'user' : 'assistant', content: "[我曾给你发过一张真实图片] " + msgContent });
-        }
-    } else {
-        messages.push({ role: msg.role === 'user' ? 'user' : 'assistant', content: msgContent });
-    }
-});
 
             const endpoint = apiUrl.replace(/\/+$/, '') + (apiUrl.includes('/v1') ? '/chat/completions' : '/v1/chat/completions');
             const res = await fetch(endpoint, {
@@ -20921,221 +20916,160 @@ recentMsgs.forEach((msg, idx) => {
                 body: JSON.stringify({ model, messages, temperature: 0.9 })
             });
             const json = await res.json();
-            if(json.choices && json.choices[0]) {
+            
+            if (json.choices && json.choices[0]) {
                 let raw = json.choices[0].message.content.trim().replace(/[\u{1F600}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '');
                 raw = raw.replace(/\[\[REDPACKET:(\d+):(.*?)\]\]/g, '[红包] $1\n$2');
                 raw = raw.replace(/\[\[LOCATION:(.*?)\]\]/g, '[定位] $1');
                 raw = raw.replace(/\[\[STICKER:(.*?):(http.*?)\]\]/g, '[表情包] $1\n$2');
-                // --- 新增：处理 AI 同意修改资料的隐藏标记 ---
-let changeProfileMatch = raw.match(/\[\[CHANGE_PROFILE:(.*?):([\s\S]*?)\]\]/);
-// 增加强校验锁：必须用户最近一条消息带有申请标记，才允许它改名！
-const lastUserMsgIndex = chatList.map(m=>m.role).lastIndexOf('user');
-const userHasRequested = lastUserMsgIndex > -1 && chatList[lastUserMsgIndex].content.includes('[[PROFILE_CHANGE_REQ]]');
 
-if (changeProfileMatch) {
-    let newName = changeProfileMatch[1].trim();
-    let newBio = changeProfileMatch[2].trim();
-    raw = raw.replace(/\[\[CHANGE_PROFILE:[\s\S]*?\]\]/g, ''); // 无论是否请求，只要生成了标记就剔除，防止穿帮
-    
-    if (userHasRequested) {
-    
-    
-    let contactsDb = await getDB('cyb_contacts', {});
-    let contactList = contactsDb[accountId] || [];
-    const contactIndex = contactList.findIndex(c => c.id === npcId);
-    if (contactIndex > -1) {
-        contactList[contactIndex].name = newName;
-        contactList[contactIndex].bio = newBio;
-        await setDB('cyb_contacts', contactsDb);
-    }
-    
-    // 延迟追加系统提示，并刷新顶部名字
-    setTimeout(async () => {
-        let cDb = await getDB('cyb_chats', {});
-        cDb[accountId][npcId].push({ role: 'npc', content: `[系统提示] 对方同意了你的请求。网名已修改为：“${newName}”，签名已修改为：“${newBio}”。`, timestamp: Date.now() + 2 });
-        await setDB('cyb_chats', cDb);
-        
-        const msgArea = document.getElementById('cybChatMsgsArea');
-        if (msgArea) {
-            const topName = document.querySelector('.cyb-header .x-profile-name');
-            if (topName) topName.innerText = newName;
-            
-            let sysHtml = `
-            <div style="text-align:center; padding: 10px 0; margin-bottom: 12px;">
-                <span style="font-size:11px; font-weight:900; opacity:0.6; background:var(--neo-bg); border: 2px solid var(--line-color); padding:6px 14px; border-radius:12px; box-shadow: 2px 2px 0 var(--line-color); color:var(--text-main); display:inline-block; max-width:85%; line-height:1.5;">对方同意了你的请求。网名已修改为：“${newName}”，签名已修改为：“${newBio}”。</span>
-            </div>`;
-            msgArea.insertAdjacentHTML('beforeend', sysHtml);
-            msgArea.scrollTop = msgArea.scrollHeight;
-            
-        }
-    }, 3000);
-}
-}
-                // --- 新增：处理 AI 同意更换头像的隐藏标记 ---
-let changeAvatarMatch = raw.match(/\[\[CHANGE_AVATAR:([^:]+):([^:]+):(\d+)\]\]/);
-if (changeAvatarMatch) {
-    let cId = changeAvatarMatch[1];
-    let sId = changeAvatarMatch[2];
-    let idx = parseInt(changeAvatarMatch[3]) - 1;
-    raw = raw.replace(/\[\[CHANGE_AVATAR:.*?\]\]/g, ''); // 从聊天文本中剔除标记
-    
-    let galleryData = await getDB('gallery_data', []);
-    let cat = galleryData.find(c => c.id === cId);
-    let set = cat?.sets.find(s => s.id === sId);
-    if (set && set.images && set.images[idx]) {
-        let selectedImg = set.images[idx];
-        
-        
-        let contactsDb = await getDB('cyb_contacts', {});
-        let contactList = contactsDb[accountId] || [];
-        const contactIndex = contactList.findIndex(c => c.id === npcId);
-        if (contactIndex > -1) {
-            contactList[contactIndex].avatarImg = selectedImg.url;
-            await setDB('cyb_contacts', contactsDb);
-        }
-        
-        // 追加一条系统提示，在 AI 聊天结束后显示
-setTimeout(async () => {
-    let cDb = await getDB('cyb_chats', {});
-    cDb[accountId][npcId].push({ role: 'npc', content: `[系统提示] 对方已将头像更换为：“${selectedImg.name}”`, timestamp: Date.now() + 2 });
-    await setDB('cyb_chats', cDb);
-    
-    // 实时更新当前界面的头像和系统提示，不再重新渲染整个界面，彻底解决闪屏
-    const msgArea = document.getElementById('cybChatMsgsArea');
-    if (msgArea) {
-        const topAvatar = document.querySelector('.cyb-header .x-profile-avatar');
-        if (topAvatar) {
-            topAvatar.style.backgroundImage = "url(" + selectedImg.url + ")";
-            topAvatar.innerText = '';
-        }
-        const bubbleAvatars = msgArea.querySelectorAll('.cyb-chat-row.npc .cyb-avatar-container > div');
-        bubbleAvatars.forEach(av => {
-            av.style.backgroundImage = "url(" + selectedImg.url + ")";
-            av.innerText = '';
-        });
-        
-        let sysHtml = `
-    <div style="text-align:center; padding: 10px 0; margin-bottom: 12px;">
-        <span style="font-size:11px; font-weight:900; opacity:0.6; background:var(--neo-bg); border: 2px solid var(--line-color); padding:6px 14px; border-radius:12px; box-shadow: 2px 2px 0 var(--line-color); color:var(--text-main); display:inline-block; max-width:85%; line-height:1.5;">对方已将头像更换为：“${selectedImg.name}”</span>
-    </div>`;
-        msgArea.insertAdjacentHTML('beforeend', sysHtml);
-        msgArea.scrollTop = msgArea.scrollHeight;
-    }
-}, 3000);
-    }
-}
-                // === 完美解决多气泡粘连、JSON格式解析、换行问题的核心逻辑 ===
-let list = [];
-let cleanRaw = raw.trim();
-try {
-    let match = cleanRaw.match(/\[[\s\S]*\]/);
-    let parsed = JSON.parse(match ? match[0] : cleanRaw);
-    if (Array.isArray(parsed)) {
-        list = parsed.map(item => {
-            if (typeof item === 'object') {
-                let orig = item.original || item.text || item.content || Object.values(item)[0] || '';
-                let tr = item.trans || item.translation || (Object.keys(item).length > 1 ? Object.values(item)[1] : '');
-                return (tr && tr !== orig) ? `${orig}|---|${tr}` : String(orig);
-            }
-            return String(item);
-        }).filter(Boolean);
-    }
-} catch(e) {
-    if (cleanRaw.includes('---')) {
-        list = cleanRaw.replace(/\|---\|/g, '___TRANS___').split('---').map(s => s.replace(/___TRANS___/g, '|---|').trim()).filter(Boolean);
-    } else {
-        list = cleanRaw.split(/\n\n+/).map(s => s.trim()).filter(Boolean);
-    }
-}
+                let changeProfileMatch = raw.match(/\[\[CHANGE_PROFILE:(.*?):([\s\S]*?)\]\]/);
+                const lastUserMsgIndex = chatList.map(m=>m.role).lastIndexOf('user');
+                const userHasRequested = lastUserMsgIndex > -1 && chatList[lastUserMsgIndex].content.includes('[[PROFILE_CHANGE_REQ]]');
+                if (changeProfileMatch) {
+                    let newName = changeProfileMatch[1].trim();
+                    let newBio = changeProfileMatch[2].trim();
+                    raw = raw.replace(/\[\[CHANGE_PROFILE:[\s\S]*?\]\]/g, ''); 
+                    if (userHasRequested) {
+                        let contactsDb = await getDB('cyb_contacts', {});
+                        let contactList = contactsDb[accountId] || [];
+                        const contactIndex = contactList.findIndex(c => c.id === npcId);
+                        if (contactIndex > -1) {
+                            contactList[contactIndex].name = newName;
+                            contactList[contactIndex].bio = newBio;
+                            await setDB('cyb_contacts', contactsDb);
+                        }
+                        setTimeout(async () => {
+                            let cDb = await getDB('cyb_chats', {});
+                            cDb[accountId][npcId].push({ role: 'npc', content: `[系统提示] 对方同意了你的请求。网名已修改为：“${newName}”，签名已修改为：“${newBio}”。`, timestamp: Date.now() + 2 });
+                            await setDB('cyb_chats', cDb);
+                            const msgArea = document.getElementById('cybChatMsgsArea');
+                            if (msgArea) {
+                                const topName = document.querySelector('.cyb-header .x-profile-name');
+                                if (topName) topName.innerText = newName;
+                                msgArea.insertAdjacentHTML('beforeend', `<div style="text-align:center; padding: 10px 0; margin-bottom: 12px;"><span style="font-size:11px; font-weight:900; opacity:0.6; background:var(--neo-bg); border: 2px solid var(--line-color); padding:6px 14px; border-radius:12px; box-shadow: 2px 2px 0 var(--line-color); color:var(--text-main); display:inline-block; max-width:85%; line-height:1.5;">对方同意了你的请求。网名已修改为：“${newName}”，签名已修改为：“${newBio}”。</span></div>`);
+                                msgArea.scrollTop = msgArea.scrollHeight;
+                            }
+                        }, 3000);
+                    }
+                }
 
-let expandedList = [];
-list.forEach(item => {
-    let text = item.replace(/<br\s*\/?>/gi, '\n').replace(/\\n/g, '\n');
-    if (/^\[(图片|视频|转账|礼物|定位|系统|表情包)\]/.test(text.trim())) {
-        expandedList.push(text); return;
-    }
-    
-    if (text.includes('|---|')) {
-        // 【关键修复】：如果带有翻译隔离符，绝对不再使用换行符进行切割重组！
-        // 允许内部自然换行，防止“多句原文+少句翻译”造成的复读或乱码错位！
-        expandedList.push(text);
-    } else {
-        // 单语言无翻译时，按换行切分气泡
-        expandedList.push(...text.split(/\n+/).map(s => s.trim()).filter(Boolean));
-    }
-});
-let maxReply = 8;
-if (typeof replyCountSetting !== 'undefined') {
-    if (String(replyCountSetting).includes('-')) maxReply = parseInt(String(replyCountSetting).split('-')[1]) || 8;
-    else if (parseInt(replyCountSetting) > 0) maxReply = parseInt(replyCountSetting);
-}
-replyList = expandedList.slice(0, maxReply);
-// === 切分防御结束 ===
+                let changeAvatarMatch = raw.match(/\[\[CHANGE_AVATAR:([^:]+):([^:]+):(\d+)\]\]/);
+                if (changeAvatarMatch) {
+                    let cId = changeAvatarMatch[1], sId = changeAvatarMatch[2], idx = parseInt(changeAvatarMatch[3]) - 1;
+                    raw = raw.replace(/\[\[CHANGE_AVATAR:.*?\]\]/g, ''); 
+                    let galleryData = await getDB('gallery_data', []);
+                    let set = galleryData.find(c => c.id === cId)?.sets.find(s => s.id === sId);
+                    if (set && set.images && set.images[idx]) {
+                        let selectedImg = set.images[idx];
+                        let contactsDb = await getDB('cyb_contacts', {});
+                        let contactList = contactsDb[accountId] || [];
+                        const contactIndex = contactList.findIndex(c => c.id === npcId);
+                        if (contactIndex > -1) {
+                            contactList[contactIndex].avatarImg = selectedImg.url;
+                            await setDB('cyb_contacts', contactsDb);
+                        }
+                        setTimeout(async () => {
+                            let cDb = await getDB('cyb_chats', {});
+                            cDb[accountId][npcId].push({ role: 'npc', content: `[系统提示] 对方已将头像更换为：“${selectedImg.name}”`, timestamp: Date.now() + 2 });
+                            await setDB('cyb_chats', cDb);
+                            const msgArea = document.getElementById('cybChatMsgsArea');
+                            if (msgArea) {
+                                const topAvatar = document.querySelector('.cyb-header .x-profile-avatar');
+                                if (topAvatar) { topAvatar.style.backgroundImage = "url(" + selectedImg.url + ")"; topAvatar.innerText = ''; }
+                                const bubbleAvatars = msgArea.querySelectorAll('.cyb-chat-row.npc .cyb-avatar-container > div');
+                                bubbleAvatars.forEach(av => { av.style.backgroundImage = "url(" + selectedImg.url + ")"; av.innerText = ''; });
+                                msgArea.insertAdjacentHTML('beforeend', `<div style="text-align:center; padding: 10px 0; margin-bottom: 12px;"><span style="font-size:11px; font-weight:900; opacity:0.6; background:var(--neo-bg); border: 2px solid var(--line-color); padding:6px 14px; border-radius:12px; box-shadow: 2px 2px 0 var(--line-color); color:var(--text-main); display:inline-block; max-width:85%; line-height:1.5;">对方已将头像更换为：“${selectedImg.name}”</span></div>`);
+                                msgArea.scrollTop = msgArea.scrollHeight;
+                            }
+                        }, 3000);
+                    }
+                }
+
+                let cleanRaw = raw.trim().replace(/```json/gi, '').replace(/```text/gi, '').replace(/```/g, ''); 
+                let blocks = cleanRaw.split('===').map(s => s.trim()).filter(Boolean);
+                let expandedList = [];
+
+                blocks.forEach(block => {
+                    if (/^$$(图片|视频|转账|礼物|定位|系统|表情包)$$/.test(block.trim())) {
+                        expandedList.push(block.trim());
+                        return;
+                    }
+                    let origMatch = block.match(/【原文】([\s\S]*?)(?:【翻译】|$)/);
+                    let transMatch = block.match(/【翻译】([\s\S]*)/);
+                    
+                    if (origMatch || transMatch) {
+                        let origText = (origMatch ? origMatch[1] : block.replace(/【翻译】[\s\S]*/, '')).replace(/【原文】/g, '').trim();
+                        let transText = (transMatch ? transMatch[1] : '').replace(/【翻译】/g, '').trim();
+                        if (transText && transText !== origText) {
+                            expandedList.push(`${origText}|---|${transText}`);
+                        } else if (origText) {
+                            expandedList.push(origText);
+                        }
+                    } else {
+                        expandedList.push(block.trim());
+                    }
+                });
+
+                replyList = expandedList.slice(0, maxReply);
+                if (replyList.length === 0) replyList = ["……"];
             }
         } catch(e) {
-            replyList = ["（信号断开了，对方没有回应...）"];
+            replyList = ["（信号断开...）"];
         }
     }
 
     document.getElementById(typingId)?.remove();
 
-const avStyle = contact.avatarImg ? `background-image:url(${contact.avatarImg}); color:transparent; background-size:cover;` : '';
+    const avStyle = contact.avatarImg ? `background-image:url(${contact.avatarImg}); color:transparent; background-size:cover;` : '';
 
-// 打字机多气泡连发
-for (const reply of replyList) {
-    msgArea.insertAdjacentHTML('beforeend', `<div id="cybTypingTemp" style="color:var(--text-main); font-size:12px; font-weight:bold; opacity:0.5; align-self:flex-start; margin-bottom:12px; margin-left: 48px;">对方正在输入...</div>`);
-    msgArea.scrollTop = msgArea.scrollHeight;
-    
-    await new Promise(resolve => setTimeout(resolve, Math.min(2500, Math.max(800, reply.length * 100))));
-    document.getElementById('cybTypingTemp')?.remove();
+    for (const reply of replyList) {
+        msgArea.insertAdjacentHTML('beforeend', `<div id="cybTypingTemp" style="color:var(--text-main); font-size:12px; font-weight:bold; opacity:0.5; align-self:flex-start; margin-bottom:12px; margin-left: 48px;">对方正在输入...</div>`);
+        msgArea.scrollTop = msgArea.scrollHeight;
+        
+        await new Promise(resolve => setTimeout(resolve, Math.min(2500, Math.max(800, reply.length * 100))));
+        document.getElementById('cybTypingTemp')?.remove();
 
-    chatsDb = await getDB('cyb_chats', {}); 
-if(!chatsDb[accountId]) chatsDb[accountId] = {};
-if(!chatsDb[accountId][npcId]) chatsDb[accountId][npcId] = [];
+        chatsDb = await getDB('cyb_chats', {}); 
+        if(!chatsDb[accountId]) chatsDb[accountId] = {};
+        if(!chatsDb[accountId][npcId]) chatsDb[accountId][npcId] = [];
 
-// 【新增】：判断是否需要加20分钟时间戳
-let nowTs = Date.now();
-let timeHtml = '';
-let msgList = chatsDb[accountId][npcId];
-let lastMsg = msgList.length > 0 ? msgList[msgList.length - 1] : null;
-if (!lastMsg || nowTs - lastMsg.timestamp > 20 * 60 * 1000) {
-    let d = new Date(nowTs);
-    let timeStr = d.toLocaleDateString() === new Date().toLocaleDateString() ? 
-        d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 
-        `${d.getMonth()+1}/${d.getDate()} ${d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
-    timeHtml = `<div style="text-align:center; font-size:11px; font-weight:900; opacity:0.4; margin: 16px 0 8px;">${timeStr}</div>`;
-}
+        let nowTs = Date.now();
+        let timeHtml = '';
+        let msgList = chatsDb[accountId][npcId];
+        let lastMsg = msgList.length > 0 ? msgList[msgList.length - 1] : null;
+        if (!lastMsg || nowTs - lastMsg.timestamp > 20 * 60 * 1000) {
+            let d = new Date(nowTs);
+            let timeStr = d.toLocaleDateString() === new Date().toLocaleDateString() ? d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : `${d.getMonth()+1}/${d.getDate()} ${d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+            timeHtml = `<div style="text-align:center; font-size:11px; font-weight:900; opacity:0.4; margin: 16px 0 8px;">${timeStr}</div>`;
+        }
 
-chatsDb[accountId][npcId].push({ role: 'npc', content: reply, timestamp: nowTs });
-await setDB('cyb_chats', chatsDb);
+        chatsDb[accountId][npcId].push({ role: 'npc', content: reply, timestamp: nowTs });
+        await setDB('cyb_chats', chatsDb);
 
-msgArea.insertAdjacentHTML('beforeend', `
-${timeHtml}
-<div class="cyb-chat-row npc" style="margin-bottom: 12px;">
-        <div class="cyb-avatar-container" ondblclick="executeCybNudge('${accountId}', '${npcId}')" style="cursor: pointer;">
-            <div style="width:100%; height:100%; border-radius:12px; border:2px solid var(--line-color); ${avStyle} background-color:var(--color-pink); display:flex; align-items:center; justify-content:center; font-weight:900; font-size:14px; background-position:center; background-size:cover; pointer-events:none;">${contact.avatarImg ? '' : displayName.charAt(0)}</div>
-        </div>
-        ${parseCybSpecialMsg(reply, false, 'cyb-char-bubble', {content: reply})}
-    </div>
-`);
-    msgArea.scrollTop = msgArea.scrollHeight;
-    await new Promise(resolve => setTimeout(resolve, 300));
-}
-let allChatSettings = await getDB('cyb_chat_settings', {});
-let chatSetKey = accountId + '_' + npcId;
-let currentChatSettings = allChatSettings[chatSetKey] || {};
-
-// 检查是否开启了自动总结开关
-if (currentChatSettings.autoSummary) {
-    let memSettings = await getDB('cyb_memory_settings_' + accountId + '_' + npcId, { threshold: 30, customPrompt: '', lastSummaryIndex: 0 });
-    let freshChatsDb = await getDB('cyb_chats', {});
-    let currentChatList = freshChatsDb[accountId][npcId] || [];
-    
-    // 如果超过了阈值，就静默触发总结
-    if (memSettings.threshold > 0 && currentChatList.length - (memSettings.lastSummaryIndex || 0) >= memSettings.threshold) {
-        setTimeout(() => window.generateCybMemory(accountId, npcId, true), 4000);
+        msgArea.insertAdjacentHTML('beforeend', `
+        ${timeHtml}
+        <div class="cyb-chat-row npc" style="margin-bottom: 12px;">
+                <div class="cyb-avatar-container" ondblclick="executeCybNudge('${accountId}', '${npcId}')" style="cursor: pointer;">
+                    <div style="width:100%; height:100%; border-radius:12px; border:2px solid var(--line-color); ${avStyle} background-color:var(--color-pink); display:flex; align-items:center; justify-content:center; font-weight:900; font-size:14px; background-position:center; background-size:cover; pointer-events:none;">${contact.avatarImg ? '' : displayName.charAt(0)}</div>
+                </div>
+                ${parseCybSpecialMsg(reply, false, 'cyb-char-bubble', {content: reply})}
+            </div>
+        `);
+        msgArea.scrollTop = msgArea.scrollHeight;
+        await new Promise(resolve => setTimeout(resolve, 300));
     }
-}
+    
+    let allChatSettings = await getDB('cyb_chat_settings', {});
+    let currentChatSettings = allChatSettings[accountId + '_' + npcId] || {};
+    if (currentChatSettings.autoSummary) {
+        let memSettings = await getDB('cyb_memory_settings_' + accountId + '_' + npcId, { threshold: 30, customPrompt: '', lastSummaryIndex: 0 });
+        let freshChatsDb = await getDB('cyb_chats', {});
+        let currentChatList = freshChatsDb[accountId][npcId] || [];
+        if (memSettings.threshold > 0 && currentChatList.length - (memSettings.lastSummaryIndex || 0) >= memSettings.threshold) {
+            setTimeout(() => window.generateCybMemory(accountId, npcId, true), 4000);
+        }
+    }
 };
 
 // 右上角：聊天选项
@@ -21166,8 +21100,10 @@ async function clearCybChatHistory(accountId, npcId) {
         chatsDb[accountId][npcId] = [];
         await setDB('cyb_chats', chatsDb);
     }
-    document.getElementById('cybChatActionModal').remove();
-    document.getElementById('cybChatWindowModal').remove();
+    // 增加兼容判断，并顺手关掉设置界面
+    if (document.getElementById('cybChatActionModal')) document.getElementById('cybChatActionModal').remove();
+    if (document.getElementById('cybChatSettingsModal')) document.getElementById('cybChatSettingsModal').remove();
+    if (document.getElementById('cybChatWindowModal')) document.getElementById('cybChatWindowModal').remove();
     openCybChatWindow(accountId, npcId);
 }
 
@@ -21187,7 +21123,9 @@ async function deleteCybContact(accountId, npcId) {
         await setDB('cyb_chats', chatsDb);
     }
     
-    document.getElementById('cybChatActionModal').remove();
+    // 增加兼容判断，并顺手关掉设置界面
+    if (document.getElementById('cybChatActionModal')) document.getElementById('cybChatActionModal').remove();
+    if (document.getElementById('cybChatSettingsModal')) document.getElementById('cybChatSettingsModal').remove();
     closeCybChatWindow(accountId); 
 }
 
@@ -21825,7 +21763,7 @@ cardHtml = `
                         <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:var(--text-main);fill:none;stroke-width:3;stroke-linecap:round;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                     </div>
                     
-                    <input id="dateTempChatInput" class="form-input" style="flex:1; border-radius: 16px; padding: 10px 14px; font-size: 14px;" placeholder="搭个讪..." onkeypress="if(event.key==='Enter') sendDateTempChat('${npcId}')" onfocus="document.getElementById('dateChatTools').classList.remove('show'); setTimeout(()=>document.getElementById('dateTempChatMsgs').scrollTop=document.getElementById('dateTempChatMsgs').scrollHeight, 200);">
+                    <input id="dateTempChatInput" class="form-input" style="flex:1; min-width:0; border-radius: 16px; padding: 10px 14px; font-size: 14px;" placeholder="搭个讪..." onkeypress="if(event.key==='Enter') sendDateTempChat('${npcId}')" onfocus="document.getElementById('dateChatTools').classList.remove('show'); setTimeout(()=>document.getElementById('dateTempChatMsgs').scrollTop=document.getElementById('dateTempChatMsgs').scrollHeight, 200);">
                     
                     <button class="form-btn" style="background:var(--color-blue); padding:0; width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0;" onclick="sendDateTempChat('${npcId}')">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px; margin-left:2px;"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
@@ -23007,7 +22945,7 @@ window.openCybContactProfileModal = async function(accountId, npcId) {
                                 <svg viewBox="0 0 24 24" style="width:24px;height:24px;stroke:#111;fill:none;stroke-width:2.5; margin-bottom: 6px;"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
                                 <div style="font-size: 13px; font-weight: 900; color: #111;">信号追踪</div>
                             </div>
-                            <div style="flex: 1; background: #fff; border: 2.5px solid var(--line-color); border-radius: 14px; padding: 14px 10px; text-align: center; cursor: pointer; transition: 0.1s;" onclick="uiAlert('匿名探测模块未接入')">
+                            <div style="flex: 1; background: #fff; border: 2.5px solid var(--line-color); border-radius: 14px; padding: 14px 10px; text-align: center; cursor: pointer; transition: 0.1s;" onclick="openCybAnonymousProbe('${accountId}', '${npcId}')">
                                 <svg viewBox="0 0 24 24" style="width:24px;height:24px;stroke:#111;fill:none;stroke-width:2.5; margin-bottom: 6px;"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
                                 <div style="font-size: 13px; font-weight: 900; color: #111;">匿名探测</div>
                             </div>
@@ -23020,7 +22958,189 @@ window.openCybContactProfileModal = async function(accountId, npcId) {
     `;
     document.body.appendChild(overlay);
 };
+// ===================================================
+// 终端功能：匿名探测系统 (面板记录版)
+// ===================================================
+window.openCybAnonymousProbe = async function(accountId, npcId) {
+    let probesDb = await getDB('cyb_probes', {});
+    let traceList = probesDb[accountId + '_' + npcId] || [];
 
+    let html = '';
+    if (traceList.length === 0) {
+        html = '<div style="text-align:center; padding: 40px 20px; font-weight:900; opacity:0.4; font-size:12px; line-height:1.6;">这里空空如也...<br>点击下方按钮，以陌生人身份向TA提问吧。</div>';
+    } else {
+        traceList.slice().reverse().forEach((t) => {
+            html += `
+                <div style="background:var(--neo-bg); border:2.5px solid var(--line-color); border-radius:14px; padding:14px; box-shadow:3px 3px 0 var(--line-color); margin-bottom: 16px;">
+                    <div style="font-size:11px; font-weight:900; color:var(--color-blue); margin-bottom:6px;">[ ${t.timeStr} ] 你的提问：</div>
+                    <div style="font-size:13px; font-weight:bold; color:var(--text-main); margin-bottom:12px; line-height: 1.5;">${escapeEchoText(t.question).replace(/\\n/g, '<br>').replace(/\n/g, '<br>')}</div>
+                    
+                    <div style="font-size:11px; font-weight:900; color:var(--color-pink); margin-bottom:6px; border-top: 1px dashed rgba(0,0,0,0.1); padding-top: 8px;">TA 的回答：</div>
+                    <div style="font-size:13px; font-weight:bold; line-height:1.6; color:var(--text-main); margin-bottom:12px;">${escapeEchoText(t.reply).replace(/\\n/g, '<br>').replace(/\n/g, '<br>')}</div>
+                    
+                    <div style="text-align:right;">
+                        <button class="diary-mini-btn" style="background:var(--color-yellow); font-size:12px; padding:6px 12px; box-shadow: 2px 2px 0 var(--line-color);" onclick="forwardCybProbe('${accountId}', '${npcId}', '${t.id}')">转发质问 TA</button>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    const oldModal = document.getElementById('cybAnonymousProbeModal');
+    if (oldModal) oldModal.remove();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'cybAnonymousProbeModal';
+    overlay.style.display = 'flex';
+    overlay.style.zIndex = '9999999';
+    overlay.innerHTML = `
+        <div class="modal-content" style="max-width:340px; max-height:85vh; display:flex; flex-direction:column; padding: 24px 20px;">
+            <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:20px;">
+                <svg viewBox="0 0 24 24" style="width:24px;height:24px;stroke:var(--color-yellow);fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+                <h3 style="margin:0; font-weight:900; color:var(--text-main);">匿名探测记录</h3>
+            </div>
+            <div style="flex:1; overflow-y:auto; padding-right:4px;">
+                ${html}
+            </div>
+            <div style="display:flex; gap:10px; margin-top:20px; flex-shrink: 0;">
+                <button class="form-btn" style="flex:1; background:#5a5f66; color:#fff;" onclick="document.getElementById('cybAnonymousProbeModal').remove()">关闭</button>
+                <button class="form-btn" style="flex:1.5; background:var(--color-yellow);" onclick="openCybNewProbeModal('${accountId}', '${npcId}')">+ 发起新探测</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+};
+
+window.openCybNewProbeModal = function(accountId, npcId) {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'cybNewProbeModal';
+    overlay.style.display = 'flex';
+    overlay.style.zIndex = '99999999'; 
+    overlay.innerHTML = `
+        <div class="modal-content" style="max-width: 320px; padding: 24px;">
+            <h3 style="text-align:center; margin-bottom: 8px;">发送匿名探测</h3>
+            <div style="font-size:12px; font-weight:bold; opacity:0.6; text-align:center; margin-bottom:16px;">
+                以陌生人的身份向 TA 提问。<br>TA 不会知道是你，非常适合钓鱼查岗。
+            </div>
+            <textarea id="anonymousProbeInput" class="form-textarea" style="min-height:90px; margin-bottom:16px; font-size:13px;" placeholder="例如：你有女朋友吗？最近有没有跟别人暧昧？"></textarea>
+            <div style="display:flex; gap:10px;">
+                <button class="form-btn" style="flex:1; background:#5a5f66; color:#fff;" onclick="document.getElementById('cybNewProbeModal').remove()">取消</button>
+                <button class="form-btn" style="flex:1; background:var(--color-yellow);" onclick="submitCybAnonymousProbe('${accountId}', '${npcId}')">发送探测</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+};
+
+window.submitCybAnonymousProbe = async function(accountId, npcId) {
+    const input = document.getElementById('anonymousProbeInput');
+    const question = input.value.trim();
+    if (!question) return uiAlert("探测内容不能为空！");
+    
+    document.getElementById('cybNewProbeModal').remove();
+
+    const loading = document.createElement('div');
+    loading.className = 'modal-overlay';
+    loading.style.display = 'flex';
+    loading.style.zIndex = '99999999';
+    loading.innerHTML = `<div style="padding: 24px; background: rgba(0,0,0,0.8); color: white; border-radius: 16px; font-weight: 900; text-align: center; border:2px solid var(--color-yellow);"><div class="splash-loader" style="margin: 0 auto 12px; border-color: var(--color-yellow);"></div>伪装IP发送中...<br><span style="font-size:12px; opacity:0.8; font-weight:bold; margin-top:8px; display:block;">正在等待 TA 的真实回答</span></div>`;
+    document.body.appendChild(loading);
+
+    let contactsDb = await getDB('cyb_contacts', {});
+    let contact = (contactsDb[accountId] || []).find(c => c.id === npcId) || { name: '未知对象', bio: '' };
+
+    const apiUrl = await getDB('apiUrl');
+    const apiKey = await getDB('apiKey');
+    const model = await getDB('aiModel');
+
+    let replyText = "对方警觉性很高，无视了你的匿名提问。";
+
+    if (apiUrl && apiKey && model) {
+        try {
+            const prompt = `你现在的角色是：${contact.name}，设定：${contact.bio}。
+你在一个类似“匿名提问箱”的社交平台功能里，收到了一个完全不知道是谁的【匿名陌生人】发来的提问。
+提问内容：“${question}”
+
+【核心要求】：
+1. 你不知道对方是谁！绝对不要把提问者当成平时和你私聊的用户。
+2. 请根据你的性格设定，给出符合你人设的真实回答。可能诚实，可能海王，可能专一，可能暴躁，也可能敷衍。
+3. 语气自然口语化，绝对不要使用emoji。
+4. 绝对不要包含任何JSON或Markdown标记，直接输出你的第一人称回答文本。` + (typeof NS_FW_PROMPT !== 'undefined' ? NS_FW_PROMPT : '');
+            
+            const endpoint = apiUrl.replace(/\/+$/, '') + (apiUrl.includes('/v1') ? '/chat/completions' : '/v1/chat/completions');
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                body: JSON.stringify({ model, messages: [{ role: 'system', content: prompt }], temperature: 0.9 })
+            });
+            const json = await res.json();
+            if (json.choices && json.choices[0]) {
+                replyText = json.choices[0].message.content.trim().replace(/[\u{1F600}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '');
+            }
+        } catch(e) {}
+    }
+
+    loading.remove();
+
+    // 将探测记录存入数据库
+    let probesDb = await getDB('cyb_probes', {});
+    let key = accountId + '_' + npcId;
+    if (!probesDb[key]) probesDb[key] = [];
+    
+    let d = new Date();
+    let timeStr = `${d.getMonth()+1}-${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    
+    probesDb[key].push({
+        id: Date.now(),
+        question: question,
+        reply: replyText,
+        timeStr: timeStr
+    });
+    await setDB('cyb_probes', probesDb);
+
+    // 发送完毕后，直接原地刷新探测面板
+    openCybAnonymousProbe(accountId, npcId);
+};
+
+// --- 发送探测记录到聊天框进行质问 ---
+window.forwardCybProbe = async function(accountId, npcId, probeId) {
+    let probesDb = await getDB('cyb_probes', {});
+    let traceList = probesDb[accountId + '_' + npcId] || [];
+    let probe = traceList.find(t => String(t.id) === String(probeId));
+    if (!probe) return;
+
+    let chatsDb = await getDB('cyb_chats', {});
+    if(!chatsDb[accountId]) chatsDb[accountId] = {};
+    if(!chatsDb[accountId][npcId]) chatsDb[accountId][npcId] = [];
+
+    // 拼装一条带有[匿名探测箱记录]标记的消息
+    const msgContent = `[匿名探测箱记录]\n提问：${probe.question}\n回答：${probe.reply}`;
+
+    chatsDb[accountId][npcId].push({
+        id: Date.now() + '_' + Math.floor(Math.random()*1000),
+        role: 'user',
+        content: msgContent,
+        timestamp: Date.now(),
+        failed: false
+    });
+    
+    await setDB('cyb_chats', chatsDb);
+
+    window.cybCurrentTab = 'chat';
+    
+    // 关闭资料卡和探测面板
+    if (document.getElementById('cybAnonymousProbeModal')) document.getElementById('cybAnonymousProbeModal').remove();
+    if (document.getElementById('cybContactProfileModal')) document.getElementById('cybContactProfileModal').remove();
+    
+    // 强制刷新并滚到底部
+    await openCybChatWindow(accountId, npcId);
+    setTimeout(() => {
+        const msgArea = document.getElementById('cybChatMsgsArea');
+        if (msgArea) msgArea.scrollTop = msgArea.scrollHeight;
+    }, 100);
+};
 // ===================================================
 // 终端功能：信号追踪引擎
 // ===================================================
