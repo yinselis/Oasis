@@ -25471,19 +25471,24 @@ let _emergencyTapCount = 0;
 let _emergencyTapTimer = null;
 document.addEventListener('touchstart', async (e) => {
     _emergencyTapCount++;
+    // 如果想要更难触发，可以把下面的 2000 (2秒) 改短，或者把判定次数改大
     if (_emergencyTapCount === 1) {
         _emergencyTapTimer = setTimeout(() => { _emergencyTapCount = 0; }, 2000); 
     }
+    // 连续点击6次后触发
     if (_emergencyTapCount >= 6) {
         _emergencyTapCount = 0;
         clearTimeout(_emergencyTapTimer);
         
-        await setDB('customCss', '');
-        await setDB('customFont', ''); // 连字体一起干掉防止字体文件损坏卡死
-        document.getElementById('custom-widget-css').innerHTML = '';
-        document.getElementById('custom-font-style').innerHTML = '';
-        
-        uiAlert('🚑 紧急救援系统已触发！\n\n检测到您连续高频点击屏幕，已自动清空所有自定义 CSS 代码和外部字体，界面已恢复默认出厂设置，安全警报解除！');
+        // 增加确认弹窗，防误触
+        if (await uiConfirm("🚨 触发紧急救援机制！\n\n你刚刚连续高频点击了屏幕。请问界面是否卡死，需要清空自定义外观(CSS/字体)并恢复默认吗？\n\n(如果只是误触，请点击取消)")) {
+            await setDB('customCss', '');
+            await setDB('customFont', ''); // 连字体一起干掉防止字体文件损坏卡死
+            document.getElementById('custom-widget-css').innerHTML = '';
+            document.getElementById('custom-font-style').innerHTML = '';
+            
+            uiAlert('🚑 紧急救援已执行！\n\n外观已恢复默认，安全警报解除。');
+        }
     }
 }, {passive: true});
 
