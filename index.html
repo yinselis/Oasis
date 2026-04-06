@@ -20348,8 +20348,15 @@ let accounts = await getDB('cyb_accounts', []);
 let me = accounts.find(a => a.id === accountId) || { name: '我', avatarB64: '' };
 let myAvStyle = me.avatarB64 ? `background-image:url(${me.avatarB64}); color:transparent; background-size:cover;` : '';
 
-// 自定义样式注入
-const customCssTag = settings.customCss ? `<style>${settings.customCss}</style>` : '';
+// 终端专属自定义样式注入 (固定挂载到头部，强制瞬间重绘)
+let cybStyleNode = document.getElementById('cyb-dynamic-style');
+if (!cybStyleNode) {
+    cybStyleNode = document.createElement('style');
+    cybStyleNode.id = 'cyb-dynamic-style';
+    document.head.appendChild(cybStyleNode);
+}
+cybStyleNode.innerHTML = settings.customCss || '';
+const customCssTag = ''; // 留空，不再混入下方 HTML 字符串中
 
 let lastMsgTime = 0;
 let msgsHtml = history.map((msg, index) => {
@@ -20551,6 +20558,9 @@ if (isNew) {
 function closeCybChatWindow(accountId) {
     const modal = document.getElementById('cybChatWindowModal');
     if (modal) modal.remove();
+    
+    const cybStyleNode = document.getElementById('cyb-dynamic-style');
+if (cybStyleNode) cybStyleNode.remove();
     document.getElementById('cybShell').style.display = 'flex';
     renderCybListContent(accountId); 
 }
@@ -21490,20 +21500,16 @@ memSettings.threshold = parseInt(document.getElementById('set_memThreshold')?.va
 memSettings.customPrompt = document.getElementById('set_memPrompt')?.value.trim() || '';
 await setDB('cyb_memory_settings_' + accountId + '_' + npcId, memSettings);
 
-    document.getElementById('cybChatSettingsModal').remove();
+        document.getElementById('cybChatSettingsModal').remove();
 
-    // 【修复保存黑屏】不再删除整个聊天室，而是直接无缝替换背景
-    let chatWindow = document.getElementById('cybChatWindowModal');
-    if (chatWindow) {
-        if (window._tempCybBgBase64) {
-            chatWindow.style.backgroundImage = `url(${window._tempCybBgBase64})`;
-        } else if (document.getElementById('set_cybBgUrl').value.trim()) {
-            chatWindow.style.backgroundImage = `url(${document.getElementById('set_cybBgUrl').value.trim()})`;
-        } else {
-            chatWindow.style.backgroundImage = 'none';
-        }
-    }
-    // 原地重载内部数据，不删外壳
+    // 【终极方案】：用代码瞬间模拟“退出聊天窗再重新进入”，彻底摧毁旧缓存
+    let oldChatWindow = document.getElementById('cybChatWindowModal');
+    if (oldChatWindow) oldChatWindow.remove();
+    
+    let oldStyle = document.getElementById('cyb-dynamic-style');
+    if (oldStyle) oldStyle.remove();
+
+    // 瞬间重新打开聊天室，彻底重绘背景和所有的气泡颜色
     openCybChatWindow(accountId, npcId);
 };
 
