@@ -4698,6 +4698,7 @@ const playbackMode = await getDB('radioPlaybackMode', 'sequence');
         const apiUrl = await getDB('apiUrl', '');
         const apiKey = await getDB('apiKey', '');
         const aiModel = await getDB('aiModel', '');
+        const aiTemp = await getDB('aiTemperature', 0.8);
 const bgImgUrlVal = await getDB('bgImageUrl', '');
         const bgImgB64Val = await getDB('bgImageBase64', '');
         const imgQuality = await getDB('imageCompressionQuality', 0.8);
@@ -4814,6 +4815,14 @@ const bgImgUrlVal = await getDB('bgImageUrl', '');
                 <select id="modelSelect" class="form-select" style="display:none; margin-top: 10px;" onchange="document.getElementById('cfgAiModel').value=this.value"></select>
                 <div id="fetchModelMsg" style="font-size: 12px; font-weight: bold; margin-top: 6px;"></div>
             </div>
+            <div style="background: var(--neo-bg); border: var(--border-width) solid var(--line-color); padding: 16px; border-radius: 16px; box-shadow: 4px 4px 0px var(--line-color); margin-bottom: 20px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+        <div style="font-size: 16px; font-weight: 900;">模型温度 (Temperature)</div>
+        <div id="tempDisplay" style="font-size: 18px; font-weight: 900; color: var(--color-pink);">${aiTemp}</div>
+    </div>
+    <div style="font-size: 12px; font-weight: bold; opacity: 0.6; margin-bottom: 16px; line-height: 1.5;">决定AI回复的随机性和发散程度。数值越高思维越跳跃，越低越严谨稳定。推荐 0.7 - 1.0 之间。</div>
+    <input type="range" id="cfgAiTemp" min="0.0" max="2.0" step="0.1" value="${aiTemp}" style="width: 100%; accent-color: var(--line-color);" oninput="document.getElementById('tempDisplay').innerText = this.value">
+</div>
             <div style="display:flex; flex-direction:column; gap:12px;">
     <button class="form-btn" id="saveApiBtn" style="width: 100%; background: var(--color-green);" onclick="saveApiSettings()">保存网络配置</button>
     
@@ -5469,6 +5478,7 @@ if (actionArea) {
         await setDB('apiUrl', document.getElementById('cfgApiUrl').value.trim());
         await setDB('apiKey', document.getElementById('cfgApiKey').value.trim());
         await setDB('aiModel', document.getElementById('cfgAiModel').value.trim());
+        await setDB('aiTemperature', parseFloat(document.getElementById('cfgAiTemp').value) || 0.8);
         btn.innerText = "已保存 ✔";
         setTimeout(() => btn.innerText = "保存网络配置", 1500);
     }
@@ -5571,6 +5581,7 @@ async function sendChatMessage() {
     const apiUrl = await getDB('apiUrl');
     const apiKey = await getDB('apiKey');
     const model = await getDB('aiModel');
+    const aiTemp = await getDB('aiTemperature', 0.8);
 
     if(!apiUrl || !apiKey || !model) {
         renderChatMessage('assistant', '⚠️ 请先在【设置】APP中配置并保存 API 信息哦！');
@@ -5612,7 +5623,7 @@ async function sendChatMessage() {
         const res = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-            body: JSON.stringify({ model: model, messages: finalMessages })
+            body: JSON.stringify({ model: model, messages: finalMessages, temperature: aiTemp })
         });
         const data = await res.json();
         if(data.choices && data.choices[0]) {
@@ -20740,6 +20751,7 @@ window.receiveCybChatMsg = async function(accountId, npcId) {
     const apiUrl = await getDB('apiUrl');
     const apiKey = await getDB('apiKey');
     const model = await getDB('aiModel');
+const aiTemp = await getDB('aiTemperature', 0.8);
 
 let contactsDb = await getDB('cyb_contacts', {});
 let contact = (contactsDb[accountId] || []).find(c => c.id === npcId) || { name: '未知对象', bio: '' };
@@ -24351,7 +24363,7 @@ ${specificUser ? `【极其重要：用户的真实私密设定/方案】：用�
         const res = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-            body: JSON.stringify({ model, messages, temperature: 0.95 })
+            body: JSON.stringify({ model, messages, temperature: aiTemp })
         });
 
 const data = await res.json();
