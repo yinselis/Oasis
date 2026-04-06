@@ -2809,6 +2809,8 @@ body.desktop-text-invert .widget-disc .app-label {
     <!-- 动态插入用户字体库与CSS -->
     <style id="custom-font-style"></style>
     <style id="custom-widget-css"></style>
+    <style id="global-font-style"></style>
+    <style id="global-css"></style>
 </head>
 <body>
 <!-- 【新增】极速拦截：同步读取 localStorage，在页面渲染前强行开启黑夜模式，防止闪瞎眼 -->
@@ -3333,14 +3335,20 @@ window.playbackMode = await getDB('radioPlaybackMode', 'sequence');
         if(photoB64) document.getElementById('photo-widget').style.backgroundImage = `url(${photoB64})`;
 
         const customFont = await getDB('customFont', '');
-        if(customFont) document.getElementById('custom-font-style').innerHTML = `@import url('${customFont}'); body { font-family: 'CustomFont', 'Helvetica Neue', sans-serif !important; }`;
-        
-        const customCss = await getDB('customCss', '');
-        if(customCss) document.getElementById('custom-widget-css').innerHTML = customCss;
-const bgImgB64 = await getDB('bgImageBase64');
+if(customFont) document.getElementById('custom-font-style').innerHTML = `@import url('${customFont}'); body { font-family: 'CustomFont', 'Helvetica Neue', sans-serif !important; }`;
+
+const customCss = await getDB('customCss', '');
+if(customCss) document.getElementById('custom-widget-css').innerHTML = customCss;
+
+const globalFont = await getDB('globalFont', '');
+if(globalFont) document.getElementById('global-font-style').innerHTML = `@import url('${globalFont}'); body { font-family: 'GlobalFont', 'Helvetica Neue', sans-serif !important; }`;
+
+const globalCss = await getDB('globalCss', '');
+if(globalCss) document.getElementById('global-css').innerHTML = globalCss;
         const bgImgUrl = await getDB('bgImageUrl');
-        if(bgImgB64) document.body.style.backgroundImage = `url(${bgImgB64})`;
-        else if(bgImgUrl) document.body.style.backgroundImage = `url(${bgImgUrl})`;
+const bgImgB64 = await getDB('bgImageBase64');
+if(bgImgB64) document.body.style.backgroundImage = `url(${bgImgB64})`;
+else if(bgImgUrl) document.body.style.backgroundImage = `url(${bgImgUrl})`;
         else document.body.style.backgroundImage = 'none';
         
         document.body.style.backgroundSize = 'cover';
@@ -20859,10 +20867,11 @@ ${currentTimeStr}${timeGapHint}${memoryStr}${stickerPrompt}
 【气泡数量强制】：本次回复你必须精确且严格地生成 ${replyCountPrompt} 独立的聊天气泡！
 【气泡切分与翻译死命令】：必须返回合法的 JSON 数组！绝对不要输出其他任何解释性废话或 Markdown 标记！
 - 如果你是普通话角色：只需填 original 字段（纯中文），如：[{"original": "宝贝，过来。"}, {"original": "不想理你。"}]
-- 如果你是方言或外语角色（如日语、英语等）：必须严格按照 {"original": "原文", "trans": "简体中文翻译"} 的格式！
-【绝对强制】：trans 字段必须且只能是简体中文，绝对禁止翻译成英文！
-【正确示例】：[{"original": "愛してる", "trans": "我爱你。"}, {"original": "咁快就攰喇？", "trans": "这么快就累了？"}]
-【极度警告】：严禁在一个对象的 original 或 trans 里中外文混合，且每句话必须作为一个独立对象！
+- 如果你是方言或外语角色（如日语、粤语、英语等）：必须严格按照 {"original": "原文", "trans": "简体中文翻译"} 的格式！
+【致命错误】：绝对禁止把下一句话的回复内容，合并塞进上一句话的 trans(翻译) 字段里！如果你犯了这个错误，将会被扣除99999美金！
+【错误示范】：[{"original": "乜都唔缺？", "trans": "什么都不缺？哈哈，你都几得意喔。"}] ❌这是错的！
+【正确示范】：[{"original": "乜都唔缺？", "trans": "什么都不缺？"}, {"original": "哈哈，你都几得意喔。", "trans": "哈哈，你还挺有趣的。"}] ✅必须像这样把每句话拆成独立的字典对象！
+【绝对强制】：trans 字段必须且只能是当前 original 字段内容的精准翻译！绝不能包含下一句的回答！每句话必须作为一个独立对象！
 【极低概率的特殊互动机制】：
 - 仅当在讨论现实约见地点时，才能输出：[[LOCATION:地名]]
 - 仅当极度想发起轻微肢体互动时，才能输出：[戳一戳] 我+动词+你的部位。
@@ -25510,9 +25519,9 @@ document.addEventListener('touchstart', async (e) => {
 // 🎨 打开定制引擎面板
 window.openGlobalAppearanceModal = async function() {
     window._tempCustomIcons = await getDB('customAppIcons', {});
-    const fontUrl = await getDB('customFont', '');
-    const customCss = await getDB('customCss', '');
-    const presets = await getDB('globalAppearancePresets', []); // 独立的全局预设库
+const fontUrl = await getDB('globalFont', '');
+const customCss = await getDB('globalCss', '');
+const presets = await getDB('globalAppearancePresets', []); // 独立的全局预设库
     window._tempGlobalPresets = presets;
     const isFlat = await getDB('flatMode', false);
 
@@ -25671,18 +25680,18 @@ window.saveGlobalAppearance = async function() {
 await setDB('flatMode', isFlat);
 document.body.classList.toggle('flat-mode', isFlat);
 
-    await setDB('customFont', fontUrl);
-    await setDB('customCss', customCss);
+    await setDB('globalFont', fontUrl);
+    await setDB('globalCss', customCss);
 await setDB('customAppIcons', window._tempCustomIcons);
 if(window.applyCustomIconsStyle) window.applyCustomIconsStyle(window._tempCustomIcons);
 
     if(fontUrl) {
-        document.getElementById('custom-font-style').innerHTML = `@import url('${fontUrl}'); body { font-family: 'CustomFont', 'Helvetica Neue', sans-serif !important; }`;
+        document.getElementById('global-font-style').innerHTML = `@import url('${fontUrl}'); body { font-family: 'GlobalFont', 'Helvetica Neue', sans-serif !important; }`;
     } else {
-        document.getElementById('custom-font-style').innerHTML = '';
+        document.getElementById('global-font-style').innerHTML = '';
     }
     
-    document.getElementById('custom-widget-css').innerHTML = customCss;
+    document.getElementById('global-css').innerHTML = customCss;
 
     document.getElementById('globalAppearanceModal').remove();
     uiAlert("系统重构完成！\n全新的视觉规则已注入终端。");
