@@ -22973,7 +22973,7 @@ window.openCybContactProfileModal = async function(accountId, npcId) {
                 <div onclick="uiAlert('更多设置开发中...')" style="width: 40px; height: 40px; background: var(--neo-bg); border: 2.5px solid var(--line-color); border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 2px 2px 0 var(--line-color); font-weight:900; font-size:18px; line-height:1; color:var(--text-main);">···</div>
             </div>
             <div style="flex:1; overflow-y:auto; padding: 20px; display: flex; flex-direction: column;">
-                <div style="background: var(--neo-bg); border: 3px solid var(--line-color); border-radius: 20px; box-shadow: 8px 8px 0 rgba(0,0,0,0.8); overflow: hidden; display:flex; flex-direction:column; position: relative;">
+                <div style="background: var(--neo-bg); border: 3px solid var(--line-color); border-radius: 20px; box-shadow: 8px 8px 0 rgba(0,0,0,0.8); overflow: hidden; display:flex; flex-direction:column; position: relative; flex-shrink: 0;">
                     <div style="height: 120px; background-color: #a8d5c8; border-bottom: 3px solid var(--line-color); position: relative; background-image: radial-gradient(rgba(0,0,0,0.08) 2px, transparent 2px); background-size: 16px 16px;">
                          <div style="position:absolute; top: 20px; left: 20px; font-family: monospace; font-size: 14px; font-weight: 900; color: #111; background: var(--neo-bg); padding: 6px 14px; border-radius: 8px; border: 2.5px solid var(--line-color);">ID: ${displayId}</div>
                     </div>
@@ -22987,10 +22987,9 @@ window.openCybContactProfileModal = async function(accountId, npcId) {
                                 <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:#111;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
                             </div>
                         </div>
-                        <div style="font-size: 12px; font-weight: 900; color: #999; font-family: monospace; margin-bottom: 24px; letter-spacing: 1px; text-transform: uppercase;">ALIAS // ${contact.name}</div>
-                        <div style="background: var(--bg-color); border: 2.5px dashed var(--line-color); border-radius: 12px; padding: 16px; font-size: 13px; font-weight: bold; line-height: 1.6; color: var(--text-main); opacity: 0.8; min-height: 80px; margin-bottom: 24px; display:flex; align-items:center; justify-content:center; text-align:center;">
-                            ${contact.bio || '这个人什么都没写。'}
-                        </div>
+                        <div style="background: var(--bg-color); border: 2.5px dashed var(--line-color); border-radius: 12px; padding: 16px; font-size: 13px; font-weight: bold; line-height: 1.6; color: var(--text-main); opacity: 0.8; min-height: 80px; margin-bottom: 24px; max-height: 250px; overflow-y: auto; text-align: left; word-break: break-all; white-space: pre-wrap;">
+    ${contact.bio || '这个人什么都没写。'}
+</div>
                         <div style="display: flex; gap: 12px; margin-bottom: 20px;">
                             <div style="flex: 1; background: #fff; border: 2.5px solid var(--line-color); border-radius: 14px; padding: 14px 10px; text-align: center; cursor: pointer; transition: 0.1s;" onclick="openCybSignalTrace('${accountId}', '${npcId}')">
                                 <svg viewBox="0 0 24 24" style="width:24px;height:24px;stroke:#111;fill:none;stroke-width:2.5; margin-bottom: 6px;"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
