@@ -4410,16 +4410,34 @@ async function saveProfile(type, id) {
 
     if (!name || !bio) { alert("名字和个人资料不能为空"); return; }
 
-    if (id) {
-        const profile = profiles.find(p => p.id === id);
-        if (profile) {
-            profile.name = name;
-            profile.bio = bio;
-            if (tempAvatarB64) profile.avatar = tempAvatarB64;
+if (id) {
+    const profile = profiles.find(p => p.id === id);
+    if (profile) {
+        profile.name = name;
+        profile.bio = bio;
+        if (tempAvatarB64) profile.avatar = tempAvatarB64;
+        
+        // --- 新增：同步更新【对话】APP里的好友资料（头像/名字/简介） ---
+        if (type === 'ai') {
+            let cybContactsDb = await getDB('cyb_contacts', {});
+            let changed = false;
+            for (let acc in cybContactsDb) {
+                let cList = cybContactsDb[acc];
+                let idx = cList.findIndex(x => x.id === 'cyb_npc_' + id);
+                if (idx > -1) {
+                    cList[idx].name = name;
+                    cList[idx].bio = bio;
+                    if (tempAvatarB64) cList[idx].avatarImg = tempAvatarB64;
+                    changed = true;
+                }
+            }
+            if (changed) await setDB('cyb_contacts', cybContactsDb);
         }
-    } else {
-        profiles.push({ id: Date.now(), name: name, bio: bio, avatar: tempAvatarB64 || null });
+        // --- 新增结束 ---
     }
+} else {
+    profiles.push({ id: Date.now(), name: name, bio: bio, avatar: tempAvatarB64 || null });
+}
     await setDB(dbKey, profiles);
     closeModal();
     switchCmdTab(currentCmdTab);
@@ -20977,8 +20995,8 @@ window.receiveCybChatMsg = async function(accountId, npcId) {
                 let firstUserMsg = chatList[chatList.length - pendingUserMsgs.length];
                 if (lastNpcMsg && firstUserMsg) {
                     let diffHours = (firstUserMsg.timestamp - lastNpcMsg.timestamp) / (1000 * 60 * 60);
-                    if (diffHours > 8) timeGapHint = `\n【时间感知】：距离上次聊天过去了 ${diffHours.toFixed(1)} 小时！用户消失很久才回来。`;
-                    else if (diffHours > 1) timeGapHint = `\n【时间感知】：距离上次聊天过去了 ${diffHours.toFixed(1)} 小时。`;
+                    if (diffHours > 8) timeGapHint = `\n【系统强制提示：距离你们上次聊天已经过了 ${diffHours.toFixed(1)} 小时！对方消失了很久才突然找你。你在这次回复时，可以对这个时间跨度做出反应，必须遵守你的人设！】`;
+else if (diffHours > 1) timeGapHint = `\n【系统提示：距离上次聊天过去了 ${diffHours.toFixed(1)} 小时。你可以顺口提一句这段时间你在干嘛，或者问对方刚才忙什么去了。必须遵守人物设定。如人物不在乎，可以不问。】`;
                 }
             }
 
