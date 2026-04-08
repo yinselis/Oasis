@@ -21422,7 +21422,7 @@ else if (diffHours > 1) timeGapHint = ``; // 1到8小时属于正常聊天间隔
             let beforeCmds = activeCommands.filter(c => c.position === 'before').map(c => c.text).join('\n');
             let afterCmds = activeCommands.filter(c => c.position !== 'before').map(c => c.text).join('\n');
 
-                        const prompt = `${beforeCmds ? '【前置全局设定与挂载指令】：\n' + beforeCmds + '\n\n' : ''}你正在进行沉浸式语C (Roleplay)。
+            const prompt = `${beforeCmds ? '【前置全局设定与挂载指令】：\n' + beforeCmds + '\n\n' : ''}你正在进行沉浸式语C (Roleplay)。
 【你的角色】: ${contact.name}
 【核心人设/签名】: ${contact.bio}
 
@@ -21466,8 +21466,6 @@ ${stickerPrompt}
 - 红包打赏：主动倒贴钱给用户输出：[[REDPACKET:金额:留言]]。
 - 定位：仅讨论现实地点时输出：[[LOCATION:地名]]
 - 拉黑判定：决定彻底决裂时在末尾输出 [[BLOCK]]。${afterCmds ? '\n\n【后置规则与强制挂载指令】：\n' + afterCmds : ''}` + (typeof NS_FW_PROMPT !== 'undefined' ? NS_FW_PROMPT : '');
-
-            let messages = [{ role: 'system', content: prompt }];
 
 let messages = [{ role: 'system', content: prompt }];
 chatList.slice(-limit).forEach((msg, idx) => {
