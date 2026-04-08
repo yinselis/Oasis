@@ -6929,22 +6929,22 @@ const callerIdentity = window._isPhoneAnonymous
   
 // --- 构建系统提示词（强化电话场景和防OOC规则） ---
 const systemPrompt = isInitialCall
-    ? `你叫 ${aiProfile.name}，设定：${aiProfile.bio}。\n你接到了${callerIdentity}\n请用【符合你性格的一句话】简短回应（比如接起电话的第一声“喂？”或别的开场白）。`
+    ? `你叫 ${aiProfile.name}，设定：${aiProfile.bio}。\n你接到了${callerIdentity}\n请用【符合你性格的一句话】简短回应。`
     : `你正在和${callerIdentity}通电话。你的名字是 ${aiProfile.name}，你的设定是：${aiProfile.bio}。\n请你完全代入这个角色，用口语化、自然的语气进行对话。`;
 
-const coreRules = `【核心规则】：
-1. 连发格式：可以一次性输出多条消息，只需在消息之间用特殊分隔符 "---" 分隔即可。例如："说话---再不说话我挂了。"
-2. 语言与翻译：中国人全用中文；如果是外国人（或方言、粤语），【每句话】都必须严格按照“外语原文|---|中文翻译”的格式输出！例如："Are you there?|---|你在吗？---Speak.|---|说话。"
+const coreRules = `\n\n【核心规则】：
+1. 连发格式：如果你想说多段话，请必须使用 "---" 进行分隔来拆分你的语言！例如："说话---再不说话我挂了。"（绝对不要使用换行符！）
+2. 语言与翻译：中国人全用中文；如果是外国人或使用方言、粤语，【每段话】都必须严格按照“外文或方言原文|---|标准普通话翻译”的格式输出！例如："Are you there?|---|你在吗？---Speak.|---|说话。"
 3. 电话沉浸感（防OOC）：
-   - 绝不使用emoji表情符号。
+   - 【绝对禁止】在每句话的首尾添加任何形式的引号（如「」、“”、"" 等），直接输出口语文字即可！
+   - 【绝对禁止】使用 emoji 表情符号。
    - 必须严格遵守人物性格、时代背景。
-   - 【语气词和停顿】：这正在打电话！请多用符合人设的口语习惯（如：嗯、啊、喂、那什么、轻笑、叹气、沉默）。
-   - 【简短真实】：电话交流是来回互动的，不要一次性长篇大论，保留让对方说话的余地。
-   - 绝对禁止任何油腻土味霸总语录。
-   - 以活人方向思考你的言语，结合性格与关系，判断此刻你的说话频率/风格…等等。`;
+   - 这正在打电话！请多用符合人设的口语习惯（如：嗯、啊、喂、那什么、轻笑、叹气、沉默）。
+   - 电话交流是来回互动的，不要一次性长篇大论，保留让对方说话的余地。
+   - 绝对禁止输入任何动作或心理描写。`;
 
-    
-    let messages = [{ role: 'system', content: systemPrompt }];
+    // 修复点：将 coreRules 成功拼接入系统 Prompt 中！
+    let messages = [{ role: 'system', content: systemPrompt + coreRules }];
     
     // 把通话记录放进上下文
     currentCallLog.forEach(line => messages.push({ role: line.speaker === 'user' ? 'user' : 'assistant', content: line.text }));
@@ -6962,15 +6962,21 @@ const coreRules = `【核心规则】：
         showTypingIndicator(false); // 收到回复，隐藏提示
         
         if (data.choices && data.choices[0]) {
-            // 【防腰斩修复】：先将翻译的 |---| 替换成安全字符，切分完气泡后再还原，防止翻译符号被打架切碎！
-            const rawContent = data.choices[0].message.content || '';
-            const replies = rawContent
-                .replace(/\|---\|/g, '___TRANS___') 
-                .split('---')
-                .map(s => s.trim().replace(/___TRANS___/g, '|---|'))
-                .filter(Boolean);
-            
-            for (const reply of replies) {
+    let rawContent = data.choices[0].message.content || '';
+    
+    // 修复点：强力剔除 AI 擅自加上的各种多余引号对白符号
+    rawContent = rawContent.replace(/[「」“”"]/g, '');
+    // 修复点：如果 AI 不听话使用了换行，强行将所有换行转化为切分气泡的分割符
+    rawContent = rawContent.replace(/\n+/g, '---');
+
+    // 【防腰斩修复】：先将翻译的 |---| 替换成安全字符，切分完气泡后再还原
+    const replies = rawContent
+        .replace(/\|---\|/g, '___TRANS___') 
+        .split('---')
+        .map(s => s.trim().replace(/___TRANS___/g, '|---|'))
+        .filter(Boolean);
+    
+    for (const reply of replies) {
                 const charLine = { id: Date.now(), aiProfileId, speaker: 'char', text: reply };
                 currentCallLog.push(charLine);
                 updateLiveTranscript(charLine);
@@ -6992,10 +6998,10 @@ const coreRules = `【核心规则】：
 function updateLiveTranscript(line) {
     const container = document.getElementById('phoneLiveTranscript');
     if (!container) return;
-    
+
     let mainText = line.text || '';
     let transText = '';
-    
+
     // 解析出翻译部分
     if (mainText.includes('|---|')) {
         let parts = mainText.split('|---|');
@@ -7012,20 +7018,19 @@ function updateLiveTranscript(line) {
     
     let transHtml = '';
     if (transText) {
-        lineElem.style.cursor = 'pointer';
-        // 使用原生的行内 onclick 绑定，点击展开/收起
-        lineElem.setAttribute('onclick', "const t=this.querySelector('.phone-trans-box'); if(t){ t.style.display = t.style.display === 'none' ? 'block' : 'none'; }");
+        lineElem.style.cursor = 'pointer'; // 鼠标变成小手
+        // 将点击事件直接绑定到元素上，寻找内部的 trans-box
+        lineElem.setAttribute('onclick', "const t=this.querySelector('.phone-trans-box'); if(t) t.style.display = t.style.display==='none' ? 'block' : 'none';");
         
-        // 去掉了前面的“译”字标签，只留虚线和文字，保持极简
         transHtml = `
         <div class="phone-trans-box" style="display:none; font-size:12px; opacity:0.8; font-weight:bold; margin-top:8px; border-top: 1px dashed rgba(0,0,0,0.2); padding-top: 8px;">
             ${transText.replace(/\n/g, '<br>')}
         </div>`;
     }
-    
+
     lineElem.innerHTML = `
-        <div style="font-weight:900; line-height: 1.5; word-break: break-all;">${mainText.replace(/\n/g, '<br>')}</div>
-        ${transHtml}
+    <div style="font-weight:900; line-height: 1.5; word-break: break-all;">${mainText.replace(/\n/g, '<br>')}</div>
+    ${transHtml}
     `;
     
     container.appendChild(lineElem);
@@ -21704,6 +21709,8 @@ settings.autoSummary = settings.autoSummary || false;
 settings.replyCount = settings.replyCount || 0;
 settings.customCss = settings.customCss || '';
 let memSettings = await getDB('cyb_memory_settings_' + accountId + '_' + npcId, { threshold: 30, customPrompt: '', lastSummaryIndex: 0 });
+let contactsDb = await getDB('cyb_contacts', {});
+let isGroup = (contactsDb[accountId] || []).find(c => c.id === npcId)?.isGroup || false;
 // 读取当前拉黑状态
 let blocksDb = await getDB('cyb_blocks', {});
 if (!blocksDb[accountId]) blocksDb[accountId] = [];
@@ -21835,11 +21842,14 @@ overlay.innerHTML = `
 
             <div style="background:var(--neo-bg); border:2px solid #e74c3c; padding:16px; border-radius:16px;">
     <div style="font-size:15px; font-weight:900; margin-bottom:12px; color:#e74c3c;">危险操作</div>
-    <!-- 拉黑按钮 -->
+    
+    ${isGroup ? '' : `
+    <!-- 拉黑按钮 (仅私聊显示) -->
     <button class="form-btn" style="width:100%; background:${isBlocked ? 'var(--bg-color)' : '#e74c3c'}; color:${isBlocked ? '#e74c3c' : '#fff'}; border-color:#e74c3c; margin-bottom:8px;" onclick="toggleCybBlockInSettings('${accountId}', '${npcId}')">${isBlocked ? '解除拉黑' : '拉黑该联系人'}</button>
+    `}
     
     <button class="form-btn" style="width:100%; background:var(--bg-color); border-color:#e74c3c; color:#e74c3c; margin-bottom:8px;" onclick="clearCybChatHistory('${accountId}', '${npcId}')">清空所有聊天记录</button>
-    <button class="form-btn" style="width:100%; background:#e74c3c; color:#fff; border-color:#c0392b;" onclick="deleteCybContact('${accountId}', '${npcId}')">彻底删除该联系人</button>
+    <button class="form-btn" style="width:100%; background:#e74c3c; color:#fff; border-color:#c0392b;" onclick="deleteCybContact('${accountId}', '${npcId}')">${isGroup ? '解散/退出群聊' : '彻底删除该联系人'}</button>
 </div>
 
         </div>
@@ -21986,28 +21996,28 @@ window.openCybRedPacketModal = async function(accountId, npcId) {
         </div>
         <div class="form-group" style="margin-top: 10px;">
             <label>红包个数 (群共 ${memberCount} 人)</label>
-            <input type="number" id="cybRpCount" class="form-input" placeholder="输入个数..." value="${memberCount - 1}" style="font-size:16px; font-weight:900; text-align:center; color:var(--text-main);">
+            <input type="number" id="cybRpCount" class="form-input" placeholder="输入个数..." value="${memberCount - 1}" style="font-size:16px; padding:10px; font-weight:900; text-align:center; color:var(--text-main);">
         </div>
     ` : '';
 
-    overlay.innerHTML = `
-        <div class="modal-content" style="max-width:320px;">
-            <h3 style="text-align:center; margin-bottom:16px;">发红包</h3>
-            <div class="form-group">
-                <label>总金额</label>
-                <input type="number" id="cybRpAmount" class="form-input" placeholder="输入金额..." style="font-size:24px; font-weight:900; text-align:center; color:var(--color-pink);">
-            </div>
-            ${groupFields}
-            <div class="form-group" style="margin-top: 10px;">
-                <label>留言文字</label>
-                <input type="text" id="cybRpMemo" class="form-input" value="恭喜发财，大吉大利">
-            </div>
-            <div style="display:flex; gap:10px; margin-top:20px;">
-                <button class="form-btn" style="flex:1; background:#5a5f66; color:#fff;" onclick="document.getElementById('cybRedPacketModal').remove()">取消</button>
-                <button class="form-btn" style="flex:1; background:var(--color-yellow);" onclick="submitCybRedPacket('${accountId}', '${npcId}', ${isGroup})">塞钱进红包</button>
-            </div>
+        overlay.innerHTML = `
+    <div class="modal-content" style="max-width:320px;">
+        <h3 style="text-align:center; margin-bottom:16px;">发红包</h3>
+        <div class="form-group">
+            <label>总金额</label>
+            <input type="number" id="cybRpAmount" class="form-input" placeholder="输入金额..." style="font-size:16px; padding:10px; font-weight:900; text-align:center; color:var(--color-pink);">
         </div>
-    `;
+        ${groupFields}
+        <div class="form-group" style="margin-top: 10px;">
+            <label>留言文字</label>
+            <input type="text" id="cybRpMemo" class="form-input" style="font-size:14px; padding:10px;" value="恭喜发财，大吉大利">
+        </div>
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button class="form-btn" style="flex:1; padding:10px; font-size:14px; background:#5a5f66; color:#fff;" onclick="document.getElementById('cybRedPacketModal').remove()">取消</button>
+            <button class="form-btn" style="flex:1; padding:10px; font-size:14px; background:var(--color-yellow);" onclick="submitCybRedPacket('${accountId}', '${npcId}', ${isGroup})">塞钱进红包</button>
+        </div>
+    </div>
+`;
     document.body.appendChild(overlay);
 };
 
@@ -23527,16 +23537,24 @@ window.openCybGroupProfileModal = async function(accountId, groupId, groupInfo, 
                 </div>
 
                 <div style="background:var(--neo-bg); border:3px solid var(--line-color); border-radius:16px; padding:16px; box-shadow: 4px 4px 0 var(--line-color);">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-size:14px; font-weight:900;">消息免打扰</span>
-                        <label class="switch" style="transform:scale(0.8); margin:0;">
-                            <input type="checkbox">
-                            <span class="slider-btn"></span>
-                        </label>
-                    </div>
-                </div>
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:14px; font-weight:900;">消息免打扰</span>
+        <label class="switch" style="transform:scale(0.8); margin:0;">
+            <input type="checkbox">
+            <span class="slider-btn"></span>
+        </label>
+    </div>
+</div>
 
-                <button class="form-btn" style="width:100%; background:var(--color-pink); color:#fff; border-color:#e74c3c; box-shadow: 4px 4px 0 #e74c3c; margin-top:20px;" onclick="deleteCybContact('${accountId}', '${groupId}')">删除并退出</button>
+<!-- 新增：聊天环境设置入口 -->
+<div style="background:var(--neo-bg); border:3px solid var(--line-color); border-radius:16px; padding:16px; box-shadow: 4px 4px 0 var(--line-color); cursor:pointer;" onclick="openCybChatSettings('${accountId}', '${groupId}'); setTimeout(() => document.getElementById('cybGroupProfileModal')?.remove(), 300);">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:14px; font-weight:900;">聊天环境设置</span>
+        <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:var(--text-main);fill:none;stroke-width:2.5;"><polyline points="9 18 15 12 9 6"></polyline></svg>
+    </div>
+</div>
+
+<button class="form-btn" style="width:100%; background:var(--color-pink); color:#fff; border-color:#e74c3c; box-shadow: 4px 4px 0 #e74c3c; margin-top:20px;" onclick="deleteCybContact('${accountId}', '${groupId}')">删除并退出</button>
             </div>
         </div>
     `;
@@ -25237,7 +25255,7 @@ window.submitCybCreateGroup = async function(accountId) {
     if(!chatsDb[accountId]) chatsDb[accountId] = {};
     chatsDb[accountId][groupId] = [{
         role: 'npc',
-        content: '[系统提示] 你创建了群聊并邀请了他们。群聊支持AI根据人设互相搭话，你可以发一句话看看大家的反应。',
+        content: '[系统提示] 你创建了群聊并邀请了他们。',
         timestamp: Date.now()
     }];
     await setDB('cyb_chats', chatsDb);
