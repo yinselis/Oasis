@@ -310,6 +310,12 @@ body {
 .paw-menu.show .paw-menu-item:nth-child(3) { transform: translate(calc(-50% + 32px), calc(-50% - 65px)) scale(1); } /* 右上 */
 .paw-menu.show .paw-menu-item:nth-child(4) { transform: translate(calc(-50% + 70px), calc(-50% - 15px)) scale(1); } /* 右外 */
 
+/* 修复狗爪按压错位问题 (保持各自独立的坐标，防止按下时瞬间归零飞走) */
+.paw-menu.show .paw-menu-item:nth-child(1):active { transform: translate(calc(-50% - 68px), calc(-50% - 13px)) scale(0.95); box-shadow: 0px 0px 0 var(--line-color); }
+.paw-menu.show .paw-menu-item:nth-child(2):active { transform: translate(calc(-50% - 30px), calc(-50% - 63px)) scale(0.95); box-shadow: 0px 0px 0 var(--line-color); }
+.paw-menu.show .paw-menu-item:nth-child(3):active { transform: translate(calc(-50% + 34px), calc(-50% - 63px)) scale(0.95); box-shadow: 0px 0px 0 var(--line-color); }
+.paw-menu.show .paw-menu-item:nth-child(4):active { transform: translate(calc(-50% + 72px), calc(-50% - 13px)) scale(0.95); box-shadow: 0px 0px 0 var(--line-color); }
+
         /* 原有小组件 */
         .widget-badge { grid-column: 3 / 5; grid-row: 3 / 5; border-radius: 50%; width: 120px; height: 120px; background: var(--color-blue); margin: 10px auto 0; transform: translateX(15px); }
         .badge-text { font-size: 14px; font-weight: 900; margin-top: 8px; color: var(--line-color); }
@@ -815,11 +821,17 @@ body.flat-mode .widget-memo {
 
 /* 按钮按压时的反馈改为缩小，不再是去阴影位移 */
 body.flat-mode .neo-box:active,
-body.flat-mode .paw-fab:active,
-body.flat-mode .paw-menu-item:active {  /* <--- 加了这一行 */
+body.flat-mode .paw-fab:active { 
     transform: scale(0.92) !important;
     box-shadow: none !important;
 }
+
+/* 特别修复：扁平模式下狗爪子如果强行直接用 scale 会导致坐标全部丢失飞到底部，这里保留它们的独立绝对坐标 */
+body.flat-mode .paw-menu-item:active { box-shadow: none !important; }
+body.flat-mode .paw-menu.show .paw-menu-item:nth-child(1):active { transform: translate(calc(-50% - 70px), calc(-50% - 15px)) scale(0.92) !important; }
+body.flat-mode .paw-menu.show .paw-menu-item:nth-child(2):active { transform: translate(calc(-50% - 32px), calc(-50% - 65px)) scale(0.92) !important; }
+body.flat-mode .paw-menu.show .paw-menu-item:nth-child(3):active { transform: translate(calc(-50% + 32px), calc(-50% - 65px)) scale(0.92) !important; }
+body.flat-mode .paw-menu.show .paw-menu-item:nth-child(4):active { transform: translate(calc(-50% + 70px), calc(-50% - 15px)) scale(0.92) !important; }
 
 /* 光碟机内部的小黑圈和下方标签也去边框 */
 body.flat-mode .widget-disc .disc-center,
@@ -4673,6 +4685,21 @@ async function editProfile(type, id = null) {
                         <input type="file" id="profileCoverUpload" style="display:none;" accept="image/*" onchange="handleProfileCoverUpload(event)">
                         <div id="profileCoverStatus" style="font-size:11px; font-weight:bold; color:var(--color-pink); text-align:center; display:none;"></div>
                     </div>
+                    
+                    <!-- 新增：同步到终端的超直观开关 -->
+                    ${type === 'ai' ? `
+                    <div class="profile-edit-item" style="justify-content: space-between; align-items: center; border-color: var(--color-pink); box-shadow: 2px 2px 0 var(--color-pink);">
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                            <span class="profile-edit-label" style="width:auto; color:var(--color-pink); opacity:1;">一键拉入终端</span>
+                            <span style="font-size:11px; font-weight:bold; opacity:0.6;">保存后将直接出现在【对话】联系人里</span>
+                        </div>
+                        <label class="switch" style="transform: scale(0.8); margin: 0;">
+                            <input type="checkbox" id="profileSyncCyb" checked>
+                            <span class="slider-btn"></span>
+                        </label>
+                    </div>
+                    ` : ''}
+
                 </div>
 
                 <div class="profile-edit-actions" style="margin-top: 10px;">
@@ -4692,6 +4719,10 @@ async function saveProfile(type, id) {
     const bio = document.getElementById('profileBio').value.trim();
     const coverUrl = document.getElementById('profileEditCoverUrl').value.trim();
     const hideDots = document.getElementById('profileHideDots').checked;
+    
+    // 获取终端同步开关的状态
+    const syncEl = document.getElementById('profileSyncCyb');
+    const syncToCyb = syncEl ? syncEl.checked : false;
 
     if (!name || !bio) { alert("名字和个人资料不能为空"); return; }
 
@@ -4701,9 +4732,11 @@ async function saveProfile(type, id) {
     } else if (coverUrl !== '') {
         finalCoverB64 = id ? (profiles.find(p => p.id === id).coverB64 || '') : '';
         if(window.tempProfileCoverB64 === '' && document.getElementById('profileCoverStatus').innerText === '背景已清空') {
-            finalCoverB64 = ''; // 强行清空
+            finalCoverB64 = ''; 
         }
     }
+
+    let newProfileId = id || Date.now();
 
     if (id) {
         const profile = profiles.find(p => p.id === id);
@@ -4711,13 +4744,11 @@ async function saveProfile(type, id) {
             profile.name = name;
             profile.bio = bio;
             if (tempAvatarB64 !== undefined) profile.avatar = tempAvatarB64;
-            
-            // 保存背景和波点设置
             profile.coverUrl = coverUrl;
             profile.coverB64 = finalCoverB64;
             profile.hideDotPattern = hideDots;
             
-            // 同步更新终端好友资料
+            // 同步更新已经存在于终端好友列表的资料
             if (type === 'ai') {
                 let cybContactsDb = await getDB('cyb_contacts', {});
                 let changed = false;
@@ -4736,7 +4767,7 @@ async function saveProfile(type, id) {
         }
     } else {
         profiles.push({ 
-            id: Date.now(), 
+            id: newProfileId, 
             name: name, 
             bio: bio, 
             avatar: tempAvatarB64 || null,
@@ -4745,7 +4776,49 @@ async function saveProfile(type, id) {
             hideDotPattern: hideDots
         });
     }
+    
     await setDB(dbKey, profiles);
+    
+    // ================= 核心：暴力挂载到终端 =================
+    if (type === 'ai' && syncToCyb) {
+        let cybAccounts = await getDB('cyb_accounts', []);
+        // 如果用户在终端注册过账号才操作，否则不执行
+        if (cybAccounts.length > 0) {
+            let accountId = await getDB('cyb_current_account_id', null) || cybAccounts[0].id;
+            let npcId = 'cyb_npc_' + newProfileId;
+
+            let contactsDb = await getDB('cyb_contacts', {});
+            if(!contactsDb[accountId]) contactsDb[accountId] = [];
+            
+            let existingContact = contactsDb[accountId].find(c => c.id === npcId);
+            if (!existingContact) {
+                // 如果没有这个好友，强制塞进去
+                contactsDb[accountId].push({
+                    id: npcId,
+                    name: name,
+                    bio: bio,
+                    avatarImg: tempAvatarB64 || null
+                });
+                await setDB('cyb_contacts', contactsDb);
+
+                let chatsDb = await getDB('cyb_chats', {});
+                if(!chatsDb[accountId]) chatsDb[accountId] = {};
+                if(!chatsDb[accountId][npcId]) chatsDb[accountId][npcId] = [];
+                
+                // 伪造一条 AI 通过了好友验证的系统记录，增加仪式感
+                if(chatsDb[accountId][npcId].length === 0) {
+                    chatsDb[accountId][npcId].push({
+                        role: 'npc',
+                        content: "我通过了你的请求，现在我们可以开始聊天了。",
+                        timestamp: Date.now()
+                    });
+                    await setDB('cyb_chats', chatsDb);
+                }
+            }
+        }
+    }
+    // ========================================================
+
     closeModal();
     switchCmdTab(currentCmdTab);
 }
