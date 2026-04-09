@@ -2822,6 +2822,10 @@ body.desktop-text-invert .widget-disc .app-label {
 .cyb-sp-realimg-box { width: 200px; max-width: 50%; }
 .cyb-sp-media-img { width: 100%; border-radius: 8px; display: block; object-fit: cover; }
 
+/* iOS 刘海屏独立界面全局修复（对安卓无影响） */
+.cyb-header, .x-chat-top, .wb-topbar, .x-topbar, .bottle-top-nav {
+    padding-top: calc(14px + env(safe-area-inset-top)) !important;
+}
     </style>
     <!-- 动态插入用户字体库与CSS -->
     <style id="custom-font-style"></style>
