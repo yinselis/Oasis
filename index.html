@@ -18645,8 +18645,8 @@ async function generateRadarNpcs(keyword = '') {
         try {
             let prompt = `你是一个同城约会雷达系统。请生成 5 个在深夜雷达上扫描到的成年男性猎物。
 要求：
-1. 名字/昵称必须各不相同！名字要像真实的现代优质男性、随性的英文名或有品位的代号（如：陈硕、Zack、十一、失眠飞行）。【绝对禁止】使用烂俗的土味霸总名、非主流或油腻网名！
-2. 个性签名（bio）必须有高级的性张力、荷尔蒙、氛围感，符合深夜成年人交友目的，字数10-30字。【绝对禁止】油腻、爹味、说教、屌丝发言或土味情话！要像一个真正有魅力、有分寸感的帅哥发出的暗示（风格可以是清冷、痞帅、野性、斯文败类、男大等）。绝不能有任何emoji。
+1. 名字/昵称必须各不相同！名字要像真实的现代优质男性、随性的外文名或有品位的代号。【特别注意】：如果他设定为外国人，名字必须是纯外文字母（如Zack、Lukas）！如果是中国人就用中文名（如陈硕、江燃）。【绝对禁止】使用烂俗的土味霸总名、非主流或油腻网名！
+2. 个性签名（bio）必须有高级的性张力、荷尔蒙、氛围感，符合深夜成年人交友目的，字数10-30字。【绝对禁止】油腻、爹味、说教、屌丝发言或土味情话！要像一个真正有魅力、有分寸感的帅哥发出的暗示（风格可以是清冷、痞帅、野性、斯文败类、男大等）。绝不能有任何emoji。是中国人就用中文签名，外国人用母语签名。
 3. 距离随机，在 0.1 到 15.0 之间。
 ${keyword ? `4. 用户目前在搜索标签“[ ${keyword} ]”，请让这 5 个人的设定都高度契合这个标签！` : ''}
 
@@ -22568,7 +22568,7 @@ async function renderDateTempChats(container) {
 
 
 // --- 打开：临时搭讪聊天室 (真·AI实装版) ---
-async function openDateTempChatRoom(npcId) {
+window.openDateTempChatRoom = async function(npcId) {
     const tempChatsDb = await getDB('date_temp_chats', {});
     const chatData = tempChatsDb[npcId];
     if (!chatData) return;
@@ -22579,17 +22579,16 @@ async function openDateTempChatRoom(npcId) {
     };
     
     document.getElementById('dateBottomBar').style.display = 'none';
-    // 新增：进入聊天页时显示 RP 按钮并绑定事件
-const rpBtn = document.getElementById('dateRpEntryBtn');
-if(rpBtn) {
-    rpBtn.style.display = 'flex';
-    rpBtn.onclick = () => openRpRoomModal(npcId);
-}
+    const rpBtn = document.getElementById('dateRpEntryBtn');
+    if(rpBtn) {
+        rpBtn.style.display = 'flex';
+        rpBtn.onclick = () => openRpRoomModal(npcId);
+    }
     const endBtn = document.getElementById('dateEndBtn');
-if(endBtn) {
-    endBtn.style.display = 'flex';
-    endBtn.onclick = () => finishDateAndSyncX(npcId, false);
-}
+    if(endBtn) {
+        endBtn.style.display = 'flex';
+        endBtn.onclick = () => finishDateAndSyncX(npcId, false);
+    }
 
     const body = document.getElementById('dateBody');
     
@@ -22598,18 +22597,29 @@ if(endBtn) {
         const align = isUser ? 'flex-end' : 'flex-start';
         const bg = isUser ? 'var(--color-blue)' : 'var(--neo-bg)';
         const color = isUser ? '#111' : 'var(--text-main)';
+        const shadow = isUser ? '-3px 3px 0 var(--line-color)' : '3px 3px 0 var(--line-color)';
 
         let contentStr = msg.content || '';
+
+        // 【核心拦截】：如果是系统提示，直接渲染成精美居中胶囊，拦截一切绿气泡！
+        if (contentStr.startsWith('[系统提示]')) {
+            let sysText = contentStr.replace('[系统提示]', '').trim();
+            return `
+                <div style="text-align:center; padding: 10px 0; margin-bottom: 12px; width: 100%;">
+                    <span style="font-size:11px; font-weight:900; opacity:0.6; background:var(--neo-bg); border: 2px solid var(--line-color); padding:6px 14px; border-radius:12px; box-shadow: 2px 2px 0 var(--line-color); color:var(--text-main); display:inline-block; max-width:85%; line-height:1.5;">${sysText}</span>
+                </div>
+            `;
+        }
+
         let cardHtml = '';
 
         // 强力正则：无论卡片在段头还是段尾，直接剥离提取
-                let dateMatch = contentStr.match(/\[(约会邀约|已买单)\]\s*([^\n]+)(?:\n([\s\S]*))?/);
+        let dateMatch = contentStr.match(/\[(约会邀约|已买单)\]\s*([^\n]+)(?:\n([\s\S]*))?/);
         if (dateMatch) {
             contentStr = contentStr.replace(dateMatch[0], '').trim();
             const isPayCard = dateMatch[1] === '已买单';
-            const dTitle = dateMatch[2] || '邀约订单';
+            const dTitle = dateMatch[2];
             const dDesc = dateMatch[3] || '';
-            const shadow = isUser ? '-2px 2px 0 var(--line-color)' : '2px 2px 0 var(--line-color)';
             const isPay = dDesc.includes('待支付') || dDesc.includes('买单');
             const cardBg = isPayCard ? 'var(--color-green)' : (isPay ? 'var(--color-yellow)' : 'var(--color-pink)');
             const icon = isPayCard ? '✅' : (isPay ? '💸' : '💌');
@@ -22624,40 +22634,40 @@ if(endBtn) {
                 </div>`;
             }
 
-cardHtml = `
-<div style="display:flex; align-items:center; justify-content:${align}; margin-bottom: 12px; width: 100%;">
-    <div style="background: var(--neo-bg); border: 2.5px solid var(--line-color); width: 250px; max-width: 85%; border-radius: 16px; box-shadow: ${shadow}; overflow: hidden; display: flex; flex-direction: column;">
-        <div style="background: ${cardBg}; border-bottom: 2.5px solid var(--line-color); padding: 10px 14px; display: flex; align-items: center; justify-content: space-between;">
-            <span style="font-size: 14px; font-weight: 900; color: #111; display:flex; align-items:center; gap:6px;">${icon} ${headerText}</span>
-            <span style="font-size: 11px; font-weight: 900; color: #111; opacity:0.6;">来自地下集市</span>
-        </div>
-        <div style="padding: 14px;">
-            <div style="font-size: 16px; font-weight: 900; margin-bottom: 10px; color:var(--text-main); border-bottom: 1px dashed rgba(0,0,0,0.1); padding-bottom: 8px;">${dTitle}</div>
-            <div style="font-size: 13px; font-weight: bold; opacity: 0.8; line-height:1.6; color:var(--text-main); white-space: pre-wrap;">${dDesc.replace(/\\n/g, '<br>').replace(/\n/g, '<br>')}</div>
-        </div>
-        ${actionBtns}
-    </div>
-</div>`;
+            cardHtml = `
+            <div style="display:flex; align-items:center; justify-content:${align}; margin-bottom: 12px; width: 100%;">
+                <div style="background: var(--neo-bg); border: 2.5px solid var(--line-color); width: 250px; max-width: 85%; border-radius: 16px; box-shadow: ${shadow}; overflow: hidden; display: flex; flex-direction: column;">
+                    <div style="background: ${cardBg}; border-bottom: 2.5px solid var(--line-color); padding: 10px 14px; display: flex; align-items: center; justify-content: space-between;">
+                        <span style="font-size: 14px; font-weight: 900; color: #111; display:flex; align-items:center; gap:6px;">${icon} ${headerText}</span>
+                        <span style="font-size: 11px; font-weight: 900; color: #111; opacity:0.6;">来自地下集市</span>
+                    </div>
+                    <div style="padding: 14px;">
+                        <div style="font-size: 16px; font-weight: 900; margin-bottom: 10px; color:var(--text-main); border-bottom: 1px dashed rgba(0,0,0,0.1); padding-bottom: 8px;">${dTitle}</div>
+                        <div style="font-size: 13px; font-weight: bold; opacity: 0.8; line-height:1.6; color:var(--text-main); white-space: pre-wrap;">${dDesc.replace(/\\n/g, '<br>').replace(/\n/g, '<br>')}</div>
+                    </div>
+                    ${actionBtns}
+                </div>
+            </div>`;
         }
 
         let textHtml = '';
         if (contentStr) {
-    let msgText = contentStr;
-    let transHtml = '';
-    if (msgText.includes('|---|')) {
-        let parts = msgText.split('|---|');
-        msgText = parts[0];
-        transHtml = `<div style="font-size:11px; font-weight:900; opacity:0.7; margin-top:6px; border-top:1px dashed rgba(0,0,0,0.2); padding-top:6px;">${parts[1].replace(/\\n/g, '<br>').replace(/\n/g, '<br>')}</div>`;
-    }
-    
-    textHtml = `
-    <div style="display:flex; justify-content:${align}; margin-bottom:12px; width: 100%;">
-        <div style="background:${bg}; color:${color}; padding:10px 14px; border-radius:16px; border:2.5px solid var(--line-color); box-shadow: ${isUser ? '-2px 2px 0 var(--line-color)' : '2px 2px 0 var(--line-color)'}; font-size:14px; font-weight:bold; max-width:80%; word-break:break-all; cursor:pointer;" onclick="const t=this.querySelector('.chat-trans-box'); if(t){ t.style.display=t.style.display==='none'?'block':'none'; }">
-            ${msgText.replace(/\\n/g, '<br>').replace(/\n/g, '<br>')}
-            ${transHtml ? `<div class="chat-trans-box" style="display:none;">${transHtml}</div>` : ''}
-        </div>
-    </div>`;
-}
+            let msgText = contentStr;
+            let transHtml = '';
+            if (msgText.includes('|---|')) {
+                let parts = msgText.split('|---|');
+                msgText = parts[0];
+                transHtml = `<div style="font-size:11px; font-weight:900; opacity:0.7; margin-top:6px; border-top:1px dashed rgba(0,0,0,0.2); padding-top:6px;">${parts[1].replace(/\\n/g, '<br>').replace(/\n/g, '<br>')}</div>`;
+            }
+            
+            textHtml = `
+            <div style="display:flex; justify-content:${align}; margin-bottom:12px; width: 100%;">
+                <div style="background:${bg}; color:${color}; padding:10px 14px; border-radius:16px; border:2.5px solid var(--line-color); box-shadow: ${shadow}; font-size:14px; font-weight:bold; max-width:80%; word-break:break-all; cursor:pointer;" onclick="const t=this.querySelector('.chat-trans-box'); if(t){ t.style.display=t.style.display==='none'?'block':'none'; }">
+                    ${msgText.replace(/\\n/g, '<br>').replace(/\n/g, '<br>')}
+                    ${transHtml ? `<div class="chat-trans-box" style="display:none;">${transHtml}</div>` : ''}
+                </div>
+            </div>`;
+        }
 
         return `
             <div style="display:flex; flex-direction:column; width: 100%;">
@@ -22702,14 +22712,14 @@ cardHtml = `
             </div>
         </div>
     `;
-setTimeout(() => {
-    const area = document.getElementById('dateTempChatMsgs');
-    if (area) {
-        area.scrollTop = area.scrollHeight;
-        area.style.opacity = '1';
-    }
-}, 50);
-}
+    setTimeout(() => {
+        const area = document.getElementById('dateTempChatMsgs');
+        if (area) {
+            area.scrollTop = area.scrollHeight;
+            area.style.opacity = '1';
+        }
+    }, 50);
+};
 
 // --- 用户发送消息 ---
 window.sendDateTempChat = async function(npcId) {
@@ -22762,19 +22772,18 @@ window.receiveDateTempChat = async function(npcId) {
 
     let replyList = ["……"];
     try {
-                const prompt = `你在一个叫“心跳雷达”的同城线下匹配软件上。你的名字是：${chatData.info.name}，签名/简介是：${chatData.info.bio}。
+        const prompt = `你在一个叫“心跳雷达”的同城线下匹配软件上。你的名字是：${chatData.info.name}，签名/简介是：${chatData.info.bio}。
 现在你和用户匹配成功，正在进行极其私密、充满荷尔蒙的临时搭讪聊天。
 【重要要求】：
 1. 语气极度口语化，像真实的线下约会软件聊天，绝对不要用emoji。
-2. 【语言与对白格式强制规定】：请根据你的人设判断国籍。如果你是中国人，【必须全程用纯中文说话】！如果你是外国人，【强制使用你的母语外语说话，绝对禁止在原文出现中文】！
-3. 【气泡切分与翻译死命令】：必须返回合法的 JSON 数组！
-- 如果你是中国人：只需填 original 字段（纯中文），如：[{"original": "今晚有空吗"}]
-- 如果你是外国人：必须严格按照 {"original": "外语原文", "trans": "简体中文翻译"} 的格式！如：[{"original": "Are you free tonight?", "trans": "今晚有空吗？"}]
-4. 【场地/开房系统】：如果你想主动邀请对方去开房并买单，请在JSON数组中加入一条独立消息，内容格式严格为：[[DATE_INVITE:场地名称:详细描述\\n我已经付完款了。]]。本地场地有：${venueListStr}。
-5. 【代付系统】：如果用户发给你一份【待支付账单】，请决定是否代付。同意则输出：[[PAY_BILL:账单场地名称:账单详细描述]]。`;
+2. 【语言与对白格式强制规定】：请根据你的名字“${chatData.info.name}”判断你的国籍！如果你的名字是纯外文字母（如英文等），你就是外国人，【强制使用你的母语外语说话，并且必须严格使用“外文原文|---|中文翻译”的格式输出！绝对禁止在原文里夹杂中文！】；如果你的名字是中文，你就是中国人，【必须全程用纯中文说话，不需要翻译格式】！
+3. 【场地/开房系统】：如果你想主动邀请对方去开房并买单，请在回复中加入一个独立的约会气泡，格式严格为：[[DATE_INVITE:场地名称:详细描述\\n我已经付完款了。]]。本地场地有：${venueListStr}。
+4. 【代付系统】：如果用户发给你一份【待支付账单】，请决定是否代付。同意则输出：[[PAY_BILL:账单场地名称:账单详细描述]]。
+5. 【气泡切分与翻译死命令】（极其重要）：绝对不要使用 JSON！必须严格按照以下纯文本格式输出：
+- 每次回复必须拆分成 1 到 8 个独立的气泡，每个独立的气泡之间【必须】用 === 分隔！`;
 
         let messages = [{ role: 'system', content: prompt }];
-        chatData.messages.slice(-12).forEach(msg => {
+        chatData.messages.slice(-15).forEach(msg => {
             messages.push({ role: msg.role === 'user' ? 'user' : 'assistant', content: msg.content });
         });
 
@@ -22788,65 +22797,38 @@ window.receiveDateTempChat = async function(npcId) {
         
         if (json.choices && json.choices[0]) {
             let raw = json.choices[0].message.content.trim().replace(/[\u{1F600}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '');
-           raw = raw.replace(/\[\[DATE_INVITE:([^\]:]+)(?::([^\]]*))?\]\]/g, '[约会邀约] $1\n$2');
-raw = raw.replace(/\[\[PAY_BILL:([^\]:]+)(?::([^\]]*))?\]\]/g, '[已买单] $1\n$2\n✅ 账单已支付，去房间等我。');
+            raw = raw.replace(/\[\[DATE_INVITE:([^\]:]+)(?::([^\]]*))?\]\]/g, '[约会邀约] $1\n$2');
+            raw = raw.replace(/\[\[PAY_BILL:([^\]:]+)(?::([^\]]*))?\]\]/g, '[已买单] $1\n$2\n✅ 账单已支付，去房间等我。');
             
-            const parseItem = (item) => {
-                if (typeof item === 'object' && item !== null) {
-                    let orig = item.original || item.text || item.content || Object.values(item)[0] || '';
-                    let tr = item.trans || item.translation || (Object.keys(item).length > 1 ? Object.values(item)[1] : '');
-                    if (typeof orig === 'object') orig = JSON.stringify(orig);
-                    if (typeof tr === 'object') tr = JSON.stringify(tr);
-                    return (tr && tr !== orig) ? `${orig}|---|${tr}` : String(orig);
-                }
-                return String(item || '').trim();
-            };
+            let cleanRaw = raw.trim().replace(/```json/gi, '').replace(/```text/gi, '').replace(/```/g, ''); 
+            if (!cleanRaw.includes('===')) cleanRaw = cleanRaw.replace(/\n+/g, '\n===\n');
 
-            let list = [];
-            try {
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed)) list = parsed.map(parseItem).filter(Boolean);
-            } catch(e) {
-                try {
-                    const match = raw.match(/\[[\s\S]*\]/);
-                    if (match) {
-                        const parsed = JSON.parse(match[0]);
-                        if (Array.isArray(parsed)) list = parsed.map(parseItem).filter(Boolean);
-                    }
-                } catch(e2){}
-            }
-            if(!list.length) list = raw.split('---').map(s=>s.trim()).filter(Boolean);
-
+            let blocks = cleanRaw.split('===').map(s => s.trim()).filter(Boolean);
             let expandedList = [];
-            list.forEach(item => {
-                let text = item.replace(/<br\s*\/?>/gi, '\n').replace(/\\n/g, '\n');
-                if (/^\[(图片|视频|转账|礼物|语音通话|约会邀约|已买单)\]/.test(text.trim())) {
-                    expandedList.push(text);
+
+            blocks.forEach(block => {
+                // 恢复这里正确的方括号提取
+                if (/^$$(图片|视频|转账|礼物|语音通话|约会邀约|已买单)$$/.test(block.trim())) {
+                    expandedList.push(block.trim());
                     return;
                 }
-                if (text.includes('|---|')) {
-                    let parts = text.split('|---|');
-                    let origLines = parts[0].split(/\n+/).map(s => s.trim()).filter(Boolean);
-                    let transLines = parts[1].split(/\n+/).map(s => s.trim()).filter(Boolean);
-                    let maxLen = Math.max(origLines.length, transLines.length);
-                    for(let i = 0; i < maxLen; i++) {
-                        let o = origLines[i] || origLines[origLines.length-1] || '';
-                        let t = transLines[i] || transLines[transLines.length-1] || '';
-                        if (o === t || !t) expandedList.push(o);
-                        else expandedList.push(o + '|---|' + t);
-                    }
-                } else {
-                    expandedList.push(...text.split(/\n+/).map(s => s.trim()).filter(Boolean));
+                
+                let finalBlock = block;
+                if (finalBlock.includes('【原文】') || finalBlock.includes('【翻译】')) {
+                    finalBlock = finalBlock.replace(/\n*\s*【翻译】[:：]?\s*/g, '|---|').replace(/【原文】[:：]?\s*/g, '').trim();
                 }
+                
+                if (finalBlock) expandedList.push(finalBlock);
             });
 
-            replyList = expandedList.length ? expandedList : ['我看到了。'];
+            replyList = expandedList.slice(0, 5);
+            if (replyList.length === 0) replyList = cleanRaw.length > 0 ? [cleanRaw] : ["……"];
+        }
+    } catch(e) {
+        replyList = ["（网络连接好像有点问题...）"];
     }
-} catch(e) {
-    console.error(e);
-}
 
-document.getElementById(typingId)?.remove();
+    document.getElementById(typingId)?.remove();
 
     for (const reply of replyList) {
         msgArea.insertAdjacentHTML('beforeend', `<div id="dateTypingTemp" style="color:var(--text-main); font-size:12px; font-weight:bold; opacity:0.5; margin-bottom:12px; margin-left: 12px;">对方正在输入...</div>`);
@@ -22860,10 +22842,9 @@ document.getElementById(typingId)?.remove();
         tempChatsDb[npcId].messages.push({ id: Date.now(), role: 'npc', content: reply, timestamp: Date.now() });
         await setDB('date_temp_chats', tempChatsDb);
         
-        // 渲染单条回复，支持同时带有普通话和卡片的混合双拼
         let contentHtml = '';
         let textPart = reply;
-                let dateMatch = reply.match(/\[(约会邀约|已买单)\]\s*([^\n]+)(?:\n([\s\S]*))?/);
+        let dateMatch = reply.match(/\[(约会邀约|已买单)\]\s*([^\n]+)(?:\n([\s\S]*))?/);
         if (dateMatch) {
             textPart = reply.replace(dateMatch[0], '').trim();
             const isPayCard = dateMatch[1] === '已买单';
@@ -22881,22 +22862,22 @@ document.getElementById(typingId)?.remove();
                 </div>`;
             }
 
-const cardHtml = `
-<div style="display:flex; align-items:center; justify-content:flex-start; margin-bottom: 12px; width: 100%;">
-    <div style="background: var(--neo-bg); border: 2.5px solid var(--line-color); width: 250px; max-width: 85%; border-radius: 16px; box-shadow: 2px 2px 0 var(--line-color); overflow: hidden; display: flex; flex-direction: column;">
-        <div style="background: ${cardBg}; border-bottom: 2.5px solid var(--line-color); padding: 10px 14px; display: flex; align-items: center; justify-content: space-between;">
-            <span style="font-size: 14px; font-weight: 900; color: #111; display:flex; align-items:center; gap:6px;">${icon} ${headerText}</span>
-            <span style="font-size: 11px; font-weight: 900; color: #111; opacity:0.6;">来自地下集市</span>
-        </div>
-        <div style="padding: 14px;">
-            <div style="font-size: 16px; font-weight: 900; margin-bottom: 10px; color:var(--text-main); border-bottom: 1px dashed rgba(0,0,0,0.1); padding-bottom: 8px;">${dateMatch[2]}</div>
-            <div style="font-size: 13px; font-weight: bold; opacity: 0.8; line-height:1.6; color:var(--text-main); white-space: pre-wrap;">${(dateMatch[3]||'').replace(/\\n/g, '<br>').replace(/\n/g, '<br>')}</div>
-        </div>
-        ${actionBtns}
-    </div>
-</div>`;
+            const cardHtml = `
+            <div style="display:flex; align-items:center; justify-content:flex-start; margin-bottom: 12px; width: 100%;">
+                <div style="background: var(--neo-bg); border: 2.5px solid var(--line-color); width: 250px; max-width: 85%; border-radius: 16px; box-shadow: 2px 2px 0 var(--line-color); overflow: hidden; display: flex; flex-direction: column;">
+                    <div style="background: ${cardBg}; border-bottom: 2.5px solid var(--line-color); padding: 10px 14px; display: flex; align-items: center; justify-content: space-between;">
+                        <span style="font-size: 14px; font-weight: 900; color: #111; display:flex; align-items:center; gap:6px;">${icon} ${headerText}</span>
+                        <span style="font-size: 11px; font-weight: 900; color: #111; opacity:0.6;">来自地下集市</span>
+                    </div>
+                    <div style="padding: 14px;">
+                        <div style="font-size: 16px; font-weight: 900; margin-bottom: 10px; color:var(--text-main); border-bottom: 1px dashed rgba(0,0,0,0.1); padding-bottom: 8px;">${dateMatch[2]}</div>
+                        <div style="font-size: 13px; font-weight: bold; opacity: 0.8; line-height:1.6; color:var(--text-main); white-space: pre-wrap;">${(dateMatch[3]||'').replace(/\\n/g, '<br>').replace(/\n/g, '<br>')}</div>
+                    </div>
+                    ${actionBtns}
+                </div>
+            </div>`;
             
-                        if (textPart) {
+            if (textPart) {
                 let msgText = textPart;
                 let transHtml = '';
                 if (msgText.includes('|---|')) {
@@ -22936,8 +22917,6 @@ const cardHtml = `
     }
     if(btn) btn.disabled = false;
 };
-
-
 
 // --- 发送场地/账单弹窗 ---
 window.openDateVenueSelectModal = function(npcId) {
@@ -23015,8 +22994,8 @@ window.replyDateInvite = async function(npcId, isAgree) {
     let tempChatsDb = await getDB('date_temp_chats', {});
     if (!tempChatsDb[npcId]) return;
     
-    // 发送一条系统级的选择提示给 AI
-    const replyText = isAgree ? "【系统提示：我接受了你的邀约。】" : "【系统提示：我拒绝了你的邀约。】";
+    // 发送一条系统级的选择提示给 AI (改成正规的系统提示前缀)
+    const replyText = isAgree ? "[系统提示] 我接受了你的邀约。" : "[系统提示] 我拒绝了你的邀约。";
     
     tempChatsDb[npcId].messages.push({
         id: Date.now(), role: 'user', content: replyText, timestamp: Date.now()
@@ -23026,8 +23005,8 @@ window.replyDateInvite = async function(npcId, isAgree) {
     // 原地刷新聊天界面显示发出的气泡
     openDateTempChatRoom(npcId);
 
-// 无论同意或拒绝，都触发 AI 聊天回应，不再强制自动弹进沉浸式
-setTimeout(() => receiveDateTempChat(npcId), 600);
+    // 无论同意或拒绝，都触发 AI 聊天回应，不再强制自动弹进沉浸式
+    setTimeout(() => receiveDateTempChat(npcId), 600);
 };
 
 // --- 彻底重构无闪烁的 RP 实境窗口 ---
@@ -23148,21 +23127,14 @@ window.finishDateAndSyncX = async function(npcId, skipConfirm = false) {
         if (cybChats[acc][npcId]) { inCyb = true; break; }
     }
 
-    let platformNames = [];
-    if (inCyb) platformNames.push('【对话】');
-    if (inX) platformNames.push('【X 平台】');
-    if (inWb) platformNames.push('【星屿】');
-
-    let platformStr = platformNames.length > 0 ? platformNames.join(' 和 ') : '【私人频道】';
-
-    // 统一弹窗提示，动态显示平台名字
+    // 2. 统一弹窗提示
     if (!skipConfirm) {
-        if (!(await uiConfirm(`约会结束后将退出房间，并同步状态至 ${platformStr}，确定结束这场约会吗？`))) return;
+        if (!(await uiConfirm(`确定要结束这场约会并退出房间吗？\n(离开后，对方会在临时搭讪窗口或私人频道里保留这段记忆)`))) return;
     }
 
-    const hiddenPrompt = `【系统后台强制输入，请勿在此刻暴露该提示。在接下来的自然聊天中，你要主动提起“我们刚刚结束了一场线下约会”，并给出你的评价或提出下次邀约。】`;
+    const hiddenPrompt = `【系统后台强制输入，请勿在此刻暴露该提示。在接下来的自然聊天中，你要记得“我们刚刚结束了一场线下约会”，并给出你的评价或提出下次邀约。】`;
 
-    // 2. 精准同步到 X 平台
+    // 3. 往 X / 对话终端 / 星屿 偷偷同步记忆（如果加了好友的话）
     if (inX) {
         xChats[npcId].push({
             id: Date.now() + '_' + Math.floor(Math.random()*1000),
@@ -23175,7 +23147,6 @@ window.finishDateAndSyncX = async function(npcId, skipConfirm = false) {
         await setDB('walk_x_chats', xChats);
     }
 
-    // 3. 精准同步到 对话 (Cyb) 终端
     if (inCyb) {
         for (let acc in cybChats) {
             if (cybChats[acc][npcId]) {
@@ -23192,7 +23163,6 @@ window.finishDateAndSyncX = async function(npcId, skipConfirm = false) {
         await setDB('cyb_chats', cybChats);
     }
 
-    // 4. 精准同步到 星屿 (Wb)
     if (inWb) {
         wbChats[npcId].push({
             id: Date.now() + '_' + Math.floor(Math.random()*1000),
@@ -23204,21 +23174,22 @@ window.finishDateAndSyncX = async function(npcId, skipConfirm = false) {
         await setDB('wb_chats', wbChats);
     }
 
-    // 5. 兜底：如果这三端都没有（比如是从雷达新找的野生NPC），默认存到X里并建立连接
-    if (!inX && !inCyb && !inWb) {
-        xChats[npcId] = [];
-        xChats[npcId].push({
-            id: Date.now() + '_' + Math.floor(Math.random()*1000),
-            role: 'user', 
-            content: hiddenPrompt,
-            timestamp: Date.now(),
-            isHidden: true,
-            failed: false
-        });
-        await setDB('walk_x_chats', xChats);
+    // 4. 往【赴约-临时搭讪】的私聊窗口同步记忆！
+    let tempChatsDb = await getDB('date_temp_chats', {});
+    if (!tempChatsDb[npcId]) {
+        tempChatsDb[npcId] = { info: { id: npcId, name: '神秘网友', bio: '' }, messages: [] };
     }
+    
+    // 【变成高冷的系统提示】
+    tempChatsDb[npcId].messages.push({
+        id: Date.now(),
+        role: 'user',
+        content: '[系统提示] 我整理好衣服，推开门离开了房间，结束了这场约会。',
+        timestamp: Date.now()
+    });
+    await setDB('date_temp_chats', tempChatsDb);
 
-    // 退回大厅
+    // 5. 瞬间退回到搭讪列表
     switchDateTab('chat');
 };
 
