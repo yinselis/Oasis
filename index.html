@@ -11203,14 +11203,19 @@ async function generateWalkXAiPosts(keyword = '') {
     const apiUrl = await getDB('apiUrl');
 const apiKey = await getDB('apiKey');
 const model = await getDB('aiModel');
-// 增加下面这一行获取你在X里的资料
 const myProfile = await getDB('walk_x_my_profile', {name: '我的账号'});
+const aiProfiles = await getDB('ai_profiles', []); // <--- 抓取终端好友
 
-    const count = Math.floor(Math.random() * 4) + 3; // 3-6
+const count = Math.floor(Math.random() * 6) + 5; 
 
-    if (apiUrl && apiKey && model) {
-try {
-    let prompt = `请生成${count}条X平台风格的中文或外语帖子，模拟深夜在X(推特)上发福利、寻找对象的男性用户（面向女性向受众）。\n`;
+if (apiUrl && apiKey && model) {
+    try {
+        let knownPrompt = '';
+        if (aiProfiles.length > 0 && Math.random() > 0.3) {
+            let friend = aiProfiles[Math.floor(Math.random() * aiProfiles.length)];
+            knownPrompt = `\\n【熟人强制掉落】：请强制让以下角色也发布一条帖子：名字必须是“${friend.name}”，设定：${friend.bio}。他发的帖子要符合他的设定！`;
+        }
+        let prompt = `请生成${count}条X平台风格的中文或外语帖子，模拟深夜在X(推特)上发福利、寻找对象的男性用户（面向女性向受众）。${knownPrompt}\n`;
     
     if (keyword) {
         prompt += `\n【核心强制指令】：用户搜索了关键词“[ ${keyword} ]”！请你确保接下来生成的${count}个NPC的身份设定、发帖内容、语气、照片描述等，都必须100%高度契合“[ ${keyword} ]”这个主题特征！\n`;
@@ -11219,7 +11224,7 @@ try {
     prompt += `\n要求：
 1. 人设：可以是【不同国家的人】（如欧美、日韩、拉美等）！外网必须要有多国语言，如果你设定的NPC是外国人，【正文原文】必须用英语、日语、韩语等你的母语！面向女性向受众，体型性格必须多样化！可以是强势粗暴的肌肉猛男；也可以是清秀薄肌、爱穿女装、爱装乖骗打赏的小绿茶/男魅魔（假装百依百顺提供情绪价值来爆金币）；或者是深夜极度寂寞、渴求陪伴的普通帅哥。必须是成年人的极乐世界，【绝对禁止】任何emo、伤痛文学或抑郁抱怨！
 2. 正文：极度直白、充满荷尔蒙或色气感。你可以发大尺度自拍配文，也可以【单纯发布性幻想段子】，或者是【极具代入感的BG代餐/梦女文案】（比如男友视角的睡前故事、吃醋日常、强取豪夺小剧场等）。包含极具性张力的描写，对于性器官的形容必须非常直接（外文请用当地的粗俗俚语）。必须够女性向。
-3. 媒体：可以是 image、video，也可以是 none（纯文字帖子）。如果发布的是纯文字性幻想或BG代餐段子，完全可以不需要媒体！如果有媒体，标题和描述必须极度直白、露骨，有详细具体的性器官称呼，描写腹肌、薄肌、青筋、道具、女装裙底甚至半勃起的轮廓。必须详细，玩法多样化，禁止抄袭。可以更多描述身体状态、颜色、感觉。字数在30-150字，允许超出部分。
+3. 媒体：可以是 image、video，也可以是 none（纯文字帖子）。如果发布的是纯文字性幻想或BG代餐段子，完全可以不需要媒体！如果有媒体，标题和描述必须极度直白、露骨，有详细具体的性器官称呼，描写腹肌、薄肌、青筋、道具、女装裙底甚至半勃起的轮廓。必须详细，玩法多样化，禁止抄袭。可以更多描述身体状态、颜色、感觉。字数在30-250字，允许超出部分。
 4. 语气：符合女性向爽文的感官刺激，可以是霸总式的粗暴命令，也可以是病娇、忠犬的发情乞求，也可以是装乖讨好只为骗转账，或者是单纯的深夜荷尔蒙寂寞。绝对不要文绉绉的，更不许emo！
 5. 生理结构：NPC【绝对是男性】，拥有男性器官！用户/读者是【绝对的女性】，拥有女性器官！绝对禁止搞错双方的身体构造（严禁出现“姐姐的肉棒”这种逆天荒谬的描写）！哪怕NPC穿女装，他也必须是带把的男人！
 6. 格式：严格按下面格式输出，每条之间用 === 分隔，不要带额外多余解释。不要任何emoji！
@@ -11249,7 +11254,7 @@ try {
             const json = await res.json();
 
             if (json.choices && json.choices[0]) {
-                return parseWalkXAiPosts(json.choices[0].message.content);
+                return parseWalkXAiPosts(json.choices[0].message.content, aiProfiles);
             }
         } catch(e) {}
     }
@@ -11257,7 +11262,7 @@ try {
     return makeWalkXFallbackPosts(count);
 }
 
-function parseWalkXAiPosts(text) {
+function parseWalkXAiPosts(text, aiProfiles = []) {
     const blocks = text.split('===').map(s => s.trim()).filter(Boolean);
     const result = [];
 
@@ -11285,11 +11290,22 @@ else if (line.startsWith('正文翻译：')) contentTrans = line.replace('正文
 
         if (!content) return;
 
-        result.push({
-            id: Date.now() + i + Math.floor(Math.random() * 999),
-            authorId: 'ai_' + (Date.now() + i),
-            authorName: name,
-            handle: handle,
+let finalAuthorId = 'ai_' + (Date.now() + i);
+let finalAvatarImg = '';
+let known = aiProfiles.find(p => p.name === name);
+if (known) {
+    finalAuthorId = 'cyb_npc_' + known.id; // 绑定终端通讯录ID
+    finalAvatarImg = known.avatar || '';
+}
+
+result.push({
+    id: Date.now() + i + Math.floor(Math.random() * 999),
+    authorId: finalAuthorId,
+    authorName: name,
+    handle: handle,
+    bio: bio,
+    avatarText: name.slice(0,1),
+    avatarImg: finalAvatarImg,
             bio: bio,
             avatarText: name.slice(0,1),
 content: content,
@@ -13598,8 +13614,15 @@ async function maybeGenerateRepliesToMyPost(postId) {
 
     if (apiUrl && apiKey && model) {
         try {
+            const aiProfiles = await getDB('ai_profiles', []);
+            let knownFriendPrompt = '';
+            if (aiProfiles.length > 0 && Math.random() > 0.4) {
+                let friend = aiProfiles[Math.floor(Math.random() * aiProfiles.length)];
+                knownFriendPrompt = `\\n【熟人抓包强制指令】：这几个评论中，【必须】有一个是用户的现实朋友 "${friend.name}"（设定：${friend.bio}）。他在平台上认出了用户发的内容，评论要带点熟人抓包、占有欲、吃醋、质问或私密调侃的意味，甚至暗示线下找她。输出时该评论者的名字必须是"${friend.name}"。`;
+            }
+
             const prompt = `你在扮演X平台(推特)的系统引擎。用户刚刚发布了一条帖子：“${post.content}”。
-因为用户是个极具吸引力的博主，会有 2 到 5 个狂热粉丝/路人来评论。
+因为用户是个极具吸引力的博主，会有 2 到 5 个狂热粉丝/路人来评论。${knownFriendPrompt}
 【要求】：
 1. 评论语气：极度口语化，符合深夜X平台的真实感。可以是调侃、骚话、成年人的欲望表达、求关注等。
 2. 绝对不要任何emoji表情符号。
@@ -13635,17 +13658,21 @@ async function maybeGenerateRepliesToMyPost(postId) {
                     return;
                 }
 
-                if (Array.isArray(newComments) && newComments.length > 0) {
-                    posts = await getDB('walk_x_posts', []);
-                    const freshPost = posts.find(p => p.id === postId);
-                    if (!freshPost) return;
-                    if (!freshPost.commentList) freshPost.commentList = [];
+if (Array.isArray(newComments) && newComments.length > 0) {
+    posts = await getDB('walk_x_posts', []);
+    const freshPost = posts.find(p => p.id === postId);
+    if (!freshPost) return;
+    if (!freshPost.commentList) freshPost.commentList = [];
 
-                    newComments.forEach((c, i) => {
-                        freshPost.commentList.push({
-                            id: Date.now() + i,
-                            authorId: 'npc_reply_' + Date.now() + '_' + i,
-                            authorName: c.name || '狂热粉丝',
+    newComments.forEach((c, i) => {
+        let cAuthorId = 'npc_reply_' + Date.now() + '_' + i;
+        let knownP = aiProfiles.find(p => p.name === c.name);
+        if (knownP) cAuthorId = 'cyb_npc_' + knownP.id; // 如果是熟人，绑定ID
+
+        freshPost.commentList.push({
+            id: Date.now() + i,
+            authorId: cAuthorId,
+            authorName: c.name || '狂热粉丝',
                             content: c.content || '好喜欢。',
                             timestamp: Date.now() + i * 1000 // 稍微错开时间
                         });
@@ -21710,33 +21737,45 @@ I miss you.|---|我想你了。
 
                 let cleanRaw = raw.trim().replace(/```json/gi, '').replace(/```text/gi, '').replace(/```/g, ''); 
 
-                // 💡 智能兜底：如果 AI 连 === 都懒得打，只要它换行了，我们就强行帮它切开！
-                if (!cleanRaw.includes('===')) {
-                    cleanRaw = cleanRaw.replace(/\n+/g, '\n===\n');
-                }
+// 【修复外语/粤语断层Bug】：统一标签并强制拆分多个原文
+cleanRaw = cleanRaw.replace(/(?:【原文】|\[原文\]|原文[:：])/g, '【原文】')
+                   .replace(/(?:【翻译】|\[翻译\]|翻译[:：])/g, '【翻译】');
 
-                let blocks = cleanRaw.split('===').map(s => s.trim()).filter(Boolean);
-                let expandedList = [];
+// 只要碰到【原文】，前面必定切开，防止两句话粘在一起
+cleanRaw = cleanRaw.replace(/(?!^)(?=【原文】)/g, '\n===\n');
 
-                blocks.forEach(block => {
-                    if (/^$$(图片|视频|转账|礼物|定位|系统|表情包|红包|戳一戳)$$/.test(block.trim())) {
-                        expandedList.push(block.trim());
-                        return;
-                    }
-                    
-                    // 🔥【核心修复】彻底抛弃脆弱的正则匹配，直接做纯文本强转！
-                    // 只要 AI 固执地输出了“【原文】”或“【翻译】”，直接无损转成底层支持的 |---| 格式
-                    let finalBlock = block;
-                    if (finalBlock.includes('【原文】') || finalBlock.includes('【翻译】')) {
-                        finalBlock = finalBlock.replace(/\n*\s*【翻译】[:：]?\s*/g, '|---|')
-                                               .replace(/【原文】[:：]?\s*/g, '')
-                                               .trim();
-                    }
-                    
-                    if (finalBlock) {
-                        expandedList.push(finalBlock);
-                    }
-                });
+// 💡 智能兜底：如果 AI 连 === 都懒得打，只要它换行了，我们就强行帮它切开！
+if (!cleanRaw.includes('===')) {
+    // 先把【原文】和【翻译】之间的换行藏起来，防止被错误切碎
+    cleanRaw = cleanRaw.replace(/【原文】([\s\S]*?)【翻译】/g, function(match) {
+        return match.replace(/\n/g, '___NO_SPLIT___');
+    });
+    cleanRaw = cleanRaw.replace(/\n+/g, '\n===\n');
+    cleanRaw = cleanRaw.replace(/___NO_SPLIT___/g, '\n');
+}
+
+let blocks = cleanRaw.split('===').map(s => s.trim()).filter(Boolean);
+let expandedList = [];
+
+blocks.forEach(block => {
+    // 兼容各种括号的特殊卡片
+    if (/^\[(图片|视频|转账|礼物|定位|系统|表情包|红包|戳一戳)\]$/.test(block.trim())) {
+        expandedList.push(block.trim());
+        return;
+    }
+    
+    let finalBlock = block;
+    // 强制转成底层支持的 |---| 格式
+    if (finalBlock.includes('【原文】') || finalBlock.includes('【翻译】')) {
+        finalBlock = finalBlock.replace(/\n*\s*【翻译】\s*/g, '|---|')
+                               .replace(/【原文】\s*/g, '')
+                               .trim();
+    }
+    
+    if (finalBlock) {
+        expandedList.push(finalBlock);
+    }
+});
 
                 replyList = expandedList.slice(0, maxReply);
                 
