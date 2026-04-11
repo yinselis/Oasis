@@ -24152,15 +24152,53 @@ window.submitCybAnonymousProbe = async function(accountId, npcId) {
 
     if (apiUrl && apiKey && model) {
         try {
+            // === 1. 抓取用户名字与资料 ===
+            let accounts = await getDB('cyb_accounts', []);
+            let me = accounts.find(a => a.id === accountId) || { name: '对方' };
+            let realName = me.name; 
+            
+            let allSettings = await getDB('cyb_chat_settings', {});
+            let chatSettings = allSettings[accountId + '_' + npcId] || {};
+            if (chatSettings.selectedUserProfile) {
+                let userProfiles = await getDB('user_profiles', []);
+                let boundProfile = userProfiles.find(p => String(p.id) === String(chatSettings.selectedUserProfile));
+                if (boundProfile && boundProfile.name) realName = boundProfile.name;
+            }
+
+            // === 2. 提取长期核心记忆（自动总结的卡片） ===
+            let memoriesDb = await getDB('cyb_memories', {});
+            let memories = memoriesDb[accountId + '_' + npcId] || [];
+            let memoryPrompt = "";
+            if (memories.length > 0) {
+                let memText = memories.map(m => `[${m.dateStr}] ${m.text}`).join('\n');
+                memoryPrompt = `\n【你的长期核心记忆（隐藏背景）】：\n在你的生活里，你和“${realName}”之间经历过这些事，确立了如下关系：\n${memText}\n`;
+            }
+
+            // === 3. 提取最近 10 条聊天记录（短期当下氛围） ===
+            let chatsDb = await getDB('cyb_chats', {});
+            let recentChats = [];
+            if (chatsDb[accountId] && chatsDb[accountId][npcId]) {
+                recentChats = chatsDb[accountId][npcId].filter(m => !m.isHidden).slice(-20);
+            }
+            let chatPrompt = "";
+            if (recentChats.length > 0) {
+                let chatHistoryText = recentChats.map(m => `${m.role === 'user' ? realName : contact.name}: ${m.content.split('|---|')[0].replace(/\n/g, ' ')}`).join('\n');
+                chatPrompt = `\n【你的近期生活状态（隐藏背景）】：\n你最近正在和“${realName}”聊天，你们目前的氛围参考如下记录：\n${chatHistoryText}\n`;
+            }
+            // ========================================================
+
             const prompt = `你现在的角色是：${contact.name}，设定：${contact.bio}。
-你在一个类似“匿名提问箱”的社交平台功能里，收到了一个完全不知道是谁的【匿名陌生人】发来的提问。
+${memoryPrompt}${chatPrompt}
+【当前场景】：
+你在一个类似“匿名提问箱”的社交平台功能里，收到了一个【完全不知道是谁的匿名陌生人】发来的提问。
 提问内容：“${question}”
 
-【核心要求】：
-1. 你不知道对方是谁！绝对不要把提问者当成平时和你私聊的用户。
-2. 请根据你的性格设定，给出符合你人设的真实回答。可能诚实，可能海王，可能专一，可能暴躁，也可能敷衍。
-3. 语气自然口语化，绝对不要使用emoji。
-4. 绝对不要包含任何JSON或Markdown标记，直接输出你的第一人称回答文本。` + (typeof NS_FW_PROMPT !== 'undefined' ? NS_FW_PROMPT : '');
+【核心要求】（极其重要）：
+1. 保持盲区：你【绝对不知道】提问者是谁！千万不要把提问者当成 ${realName}！如果提问者语气像 ${realName}，你可以觉得奇怪或试探，但绝对不能肯定！
+2. 基于事实回答：当陌生人问及你的感情状态、有没有在意的人、最近在干嘛时，请根据【你的长期记忆】以及【近期的聊天记录】来回答！
+3. 请根据你的性格设定，给出符合你人设的真实第一人称回答。
+4. 语气自然口语化，像在社交平台上回复匿名留言一样。
+5. 绝对不要包含任何JSON或Markdown标记，直接输出文本。` + (typeof NS_FW_PROMPT !== 'undefined' ? NS_FW_PROMPT : '');
             
             const endpoint = apiUrl.replace(/\/+$/, '') + (apiUrl.includes('/v1') ? '/chat/completions' : '/v1/chat/completions');
             const res = await fetch(endpoint, {
@@ -24172,7 +24210,9 @@ window.submitCybAnonymousProbe = async function(accountId, npcId) {
             if (json.choices && json.choices[0]) {
                 replyText = json.choices[0].message.content.trim().replace(/[\u{1F600}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '');
             }
-        } catch(e) {}
+        } catch(e) {
+            console.error(e);
+        }
     }
 
     loading.remove();
