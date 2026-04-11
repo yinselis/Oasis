@@ -2823,8 +2823,11 @@ body.desktop-text-invert .widget-disc .app-label {
 .cyb-sp-media-img { width: 100%; border-radius: 8px; display: block; object-fit: cover; }
 
 /* iOS 刘海屏独立界面全局修复（对安卓无影响） */
-.cyb-header, .x-chat-top, .wb-topbar, .x-topbar, .bottle-top-nav {
+.cyb-header, .x-chat-top, .wb-topbar, .x-topbar, .bottle-top-nav, .sms-header, .phone-call-header-fs {
     padding-top: calc(14px + env(safe-area-inset-top)) !important;
+}
+.phone-hangup-btn-corner {
+    top: calc(15px + env(safe-area-inset-top)) !important;
 }
     </style>
     <!-- 动态插入用户字体库与CSS -->
@@ -4639,7 +4642,7 @@ async function editProfile(type, id = null) {
                     <div id="aiProfileCover" class="profile-edit-cover" style="${hideDots ? 'display:none;' : ''}"></div>
                     
                     <!-- 返回/取消按钮 -->
-                    <div onclick="closeModal()" style="position:absolute; top:16px; left:16px; width:36px; height:36px; background:var(--color-yellow); border:2px solid var(--line-color); border-radius:12px; display:flex; align-items:center; justify-content:center; z-index:20; box-shadow:2px 2px 0 var(--line-color); cursor:pointer;">
+                    <div onclick="closeModal()" style="position:absolute; top:calc(16px + env(safe-area-inset-top)); left:16px; width:36px; height:36px; background:var(--color-yellow); border:2px solid var(--line-color); border-radius:12px; display:flex; align-items:center; justify-content:center; z-index:20; box-shadow:2px 2px 0 var(--line-color); cursor:pointer;">
                         <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:var(--text-main);fill:none;stroke-width:3;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
                     </div>
                     <!-- 居中标题 -->
@@ -20253,7 +20256,7 @@ async function openCybProfileModal() {
                     <div id="cybProfileCover" class="profile-edit-cover" style="${hideDots ? 'display:none;' : ''}"></div>
                     
                     <!-- 左上角返回按钮 -->
-                    <div onclick="document.getElementById('cybProfileModal').remove()" style="position:absolute; top:16px; left:16px; width:36px; height:36px; background:var(--color-yellow); border:2px solid var(--line-color); border-radius:12px; display:flex; align-items:center; justify-content:center; z-index:20; box-shadow:2px 2px 0 var(--line-color); cursor:pointer;">
+                    <div onclick="document.getElementById('cybProfileModal').remove()" style="position:absolute; top:calc(16px + env(safe-area-inset-top)); left:16px; width:36px; height:36px; background:var(--color-yellow); border:2px solid var(--line-color); border-radius:12px; display:flex; align-items:center; justify-content:center; z-index:20; box-shadow:2px 2px 0 var(--line-color); cursor:pointer;">
                         <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:var(--text-main);fill:none;stroke-width:3;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
                     </div>
 
@@ -21970,7 +21973,7 @@ let estimatedTokens = Math.floor(JSON.stringify(textOnlyHistory).length * 1.2) +
     overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:var(--bg-color); z-index:999999; display:flex; flex-direction:column; align-items:stretch; padding: 0;';
 
 overlay.innerHTML = `
-<div style="width:100%; display:flex; align-items:center; gap:12px; padding:16px 20px; flex-shrink:0; box-sizing:border-box;">
+<div style="width:100%; display:flex; align-items:center; gap:12px; padding:calc(16px + env(safe-area-inset-top)) 20px 16px; flex-shrink:0; box-sizing:border-box;">
     <div class="x-chat-back-only" onclick="document.getElementById('cybChatSettingsModal').remove()" style="width: 36px; height: 36px; background: var(--color-yellow); border: 2px solid var(--line-color); border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 2px 2px 0 var(--line-color); flex-shrink:0;">
         <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:var(--text-main);fill:none;stroke-width:3;stroke-linecap:round;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
     </div>
@@ -23966,7 +23969,7 @@ window.openCybContactProfileModal = async function(accountId, npcId) {
                 <div style="background: var(--neo-bg); border: 3px solid var(--line-color); border-radius: 20px; box-shadow: 8px 8px 0 rgba(0,0,0,0.8); overflow: hidden; display:flex; flex-direction:column; position: relative; flex-shrink: 0;">
                     <div style="height: 120px; border-bottom: 3px solid var(--line-color); position: relative; ${headerBgStyle}">
                         ${dotOverlay}
-                        <div style="position:absolute; top: 20px; left: 20px; font-family: monospace; font-size: 14px; font-weight: 900; color: var(--text-main); background: var(--neo-bg); padding: 6px 14px; border-radius: 8px; border: 2.5px solid var(--line-color); z-index:2;">ID: ${displayId}</div>
+                        <div style="position:absolute; top: calc(20px + env(safe-area-inset-top)); left: 20px; font-family: monospace; font-size: 14px; font-weight: 900; color: var(--text-main); background: var(--neo-bg); padding: 6px 14px; border-radius: 8px; border: 2.5px solid var(--line-color); z-index:2;">ID: ${displayId}</div>
                     </div>
                     <div style="width: 80px; height: 80px; border-radius: 20px; border: 3px solid var(--line-color); background-color: var(--color-pink); position: absolute; top: 80px; left: 24px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 900; color: #111; background-position:center; background-size:cover; ${avStyle} z-index:3;">
                         ${contact.avatarImg ? '' : contact.name.charAt(0)}
@@ -24026,7 +24029,7 @@ window.openCybContactProfileModal = async function(accountId, npcId) {
         <div style="display:flex; flex-direction:column; height:100%; width:100%; max-width:480px; margin:0 auto; background: var(--bg-color);">
             
             <!-- 固定顶栏 -->
-            <div style="display:flex; align-items:center; justify-content:space-between; padding: 16px 20px; flex-shrink: 0; width: 100%; position:relative; z-index:10;">
+            <div style="display:flex; align-items:center; justify-content:space-between; padding: calc(16px + env(safe-area-inset-top)) 20px 16px; flex-shrink: 0; width: 100%; position:relative; z-index:10;">
                 <div class="x-chat-back-only" onclick="document.getElementById('cybContactProfileModal').remove()">
     <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:var(--text-main);fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
 </div>
@@ -24887,7 +24890,7 @@ window.openCybMemoryBank = async function(accountId, npcId) {
     overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:var(--bg-color); z-index:999999; display:flex; flex-direction:column; padding:0; align-items:stretch; animation: slideUp 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);';
     
     overlay.innerHTML = `
-        <div style="width:100%; display:flex; align-items:center; justify-content:space-between; padding:16px 20px; flex-shrink:0; border-bottom:2px solid var(--line-color); background:var(--neo-bg);">
+        <div style="width:100%; display:flex; align-items:center; justify-content:space-between; padding:calc(16px + env(safe-area-inset-top)) 20px 16px; flex-shrink:0; border-bottom:2px solid var(--line-color); background:var(--neo-bg);">
             <div style="display:flex; align-items:center; gap:12px;">
                 <div class="x-chat-back-only" onclick="document.getElementById('cybMemoryBankModal').remove()" style="width: 36px; height: 36px; background: var(--color-yellow); border: 2px solid var(--line-color); border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 2px 2px 0 var(--line-color);">
                     <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:var(--text-main);fill:none;stroke-width:3;stroke-linecap:round;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
