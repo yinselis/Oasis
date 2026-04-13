@@ -28476,7 +28476,7 @@ function renderMonopolyBoard() {
     }, 100);
 
     const btnRoll = document.getElementById('btnRollDice');
-    if (s.isProcessing || s.turnIndex === 1) { 
+    if (s.isProcessing || s.turnIndex === 1 || s.isFinished) { 
         btnRoll.style.pointerEvents = 'none';
         btnRoll.style.opacity = '0.4';
     } else { 
@@ -28523,7 +28523,7 @@ function renderMonopolyChats() {
 // ---------------- 掷骰子与流转 ----------------
 function checkMonopolyAiTurn() {
     const s = window.monopolyState;
-    if (!s.isGaming || s.isProcessing) return;
+    if (!s.isGaming || s.isProcessing || s.isFinished) return;
 
     if (s.turnIndex === 1) {
         s.isProcessing = true; // 上锁
@@ -28537,7 +28537,7 @@ function checkMonopolyAiTurn() {
 
 async function rollMonopolyDice() {
     const s = window.monopolyState;
-    if (!s.isGaming) return;
+    if (!s.isGaming || s.isFinished) return;
 
     s.isProcessing = true; // 强制锁住，防止连点
     const currentPlayer = s.players[s.turnIndex];
@@ -28563,10 +28563,10 @@ async function executeMonopolyMove(player, steps) {
     
     if (player.pos >= s.map.length - 1) {
         player.pos = s.map.length - 1;
-        s.chats.push({ role: 'system', content: `🎉 <b>${player.name}</b> 掷出了 ${steps}，成功到达终点！游戏结束！` });
-        s.isGaming = false;
+        s.chats.push({ role: 'system', content: `🎉 <b>${player.name}</b> 掷出了 ${steps}，成功到达终点！<br>大富翁阶段结束，现在进入自由互动与奖励环节！` });
+        s.isFinished = true;
         s.isProcessing = false;
-            await setDB('monopoly_save_state', null);
+            await setDB('monopoly_save_state', s);
     renderMonopolyBoard();
     renderMonopolyChats();
     setTimeout(() => uiAlert(`游戏结束！🎉\n【 ${player.name} 】获得了最终胜利！\n去尽情要求你的战利品吧。`), 500);
