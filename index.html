@@ -28628,8 +28628,10 @@ async function triggerMonopolyAiReaction(actingPlayer, eventText) {
 刚才，【${isMeActing ? '用户(我)' : '你'}】踩中了格子事件：“${eventText}”。
 请根据你的人设，给出相应的简短反应（可以带白描动作描写）。
 要求：
-1. 如果是你踩中，表现出羞耻/顺从/调侃；如果是我踩中，表现出你的命令/看戏/兴奋。
-2. 不超过50个字。绝对禁止使用 emoji。` + NS_FW_PROMPT;
+1. 如果是你踩中格子，必须遵守人物个性做出反应；如果是用户踩中格子，也必须遵守人物性格作出相对应的反应。
+2. 不超过50个字。绝对禁止使用 emoji。
+3. 必须遵守人物设定、人物性格、人物对白语言。细致思考人物在当前情况下会说什么话，使用什么语气？
+4. 绝对禁止任何霸总、油腻、土味语录。` + NS_FW_PROMPT;
 
             const endpoint = apiUrl.replace(/\/+$/, '') + (apiUrl.includes('/v1') ? '/chat/completions' : '/v1/chat/completions');
             const res = await fetch(endpoint, {
