@@ -21679,9 +21679,10 @@ ${enableTrans ? `2.  **翻译格式**：
 【第五部分：特殊互动机制】（若需触发，请单独占一个气泡）
 - 戳一戳: [戳一戳] 我戳了戳你的xxx
 - 语音: [语音] 5"\\n这里写具体文字内容
+- 发送照片: [图片] 照片标题\\n这里写详细的画面视觉描述，让人有画面感
 - 红包/转账: [[REDPACKET:金额:留言]]
 - 定位: [[LOCATION:地名]]
-- 决定拉黑: [[BLOCK]]
+- 决定拉黑: [[BLOCK]
 
 【第六部分：思维链与输出】
 现在，请在你脑内进行一次“思维链”来自我矫正，确保你完全理解了所有规则。请严格按以下两步输出：
@@ -21696,7 +21697,7 @@ ${enableTrans ? `2.  **翻译格式**：
 在忙。
 ===
 有事？
-${afterCmds ? '\n\n【附加规则】：\n' + afterCmds : ''}` + (typeof NS_FW_PROMPT !== 'undefined' ? NS_FW_PROMPT : '');
+${afterCmds ? '\n\n【附加规则】：\n' + afterCmds : ''}`;
             let messages = [{ role: 'system', content: prompt }];
             chatList.slice(-limit).forEach((msg, idx) => {
                 let msgContent = msg.content;
