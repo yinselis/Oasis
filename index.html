@@ -12512,11 +12512,7 @@ function renderWalkXChatListHtml(chatList) {
         let html = renderWalkXChatMessage(msg);
         if (window.isWalkXMultiSelectMode) {
             // 去除所有长按和点击事件，防止多选时误触预览或弹窗
-            html = html.replace(/oncontextmenu=".*?"/g, '')
-                       .replace(/ontouchstart=".*?"/g, '')
-                       .replace(/ontouchend=".*?"/g, '')
-                       .replace(/ontouchcancel=".*?"/g, '')
-                       .replace(/ontouchmove=".*?"/g, '');
+            html = html.replace(/\s+on(contextmenu|touchstart|touchend|touchcancel|touchmove)="[^"]*"/g, '');
             return `
             ${timeHtml}
             <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px; cursor:pointer; padding-left:4px;" onclick="toggleWalkXMsgSelect('${msg.id}')">
@@ -20890,11 +20886,7 @@ let msgsHtml = history.map((msg, index) => {
             </div>
         `;
         if (window.isCybMultiSelectMode) {
-            html = html.replace(/oncontextmenu=".*?"/g, '')
-                       .replace(/ontouchstart=".*?"/g, '')
-                       .replace(/ontouchend=".*?"/g, '')
-                       .replace(/ontouchcancel=".*?"/g, '')
-                       .replace(/ontouchmove=".*?"/g, '');
+            html = html.replace(/\s+on(contextmenu|touchstart|touchend|touchcancel|touchmove)="[^"]*"/g, '');
             return `
             <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px; cursor:pointer; padding-left:4px;" onclick="toggleCybMsgSelect('${msg.timestamp}')">
                 <input type="checkbox" id="cyb_cb_${msg.timestamp}" style="transform:scale(1.4); accent-color:var(--color-pink); pointer-events:none; flex-shrink:0;" ${window.cybSelectedMsgs.has(String(msg.timestamp)) ? 'checked' : ''}>
@@ -28155,8 +28147,11 @@ window.showOotdFavorites = function() {
 
     // 渲染收藏列表界面
     const appContent = document.getElementById('appContent');
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    const padTop = isIOS ? 'calc(24px + env(safe-area-inset-top))' : '4px';
+
     appContent.innerHTML = `
-        <div style="padding: 4px 8px 20px 8px;"> <!-- 加上呼吸边距 -->
+        <div style="padding: ${padTop} 8px 20px 8px;"> <!-- iOS专属高度 -->
             <div style="display: flex; align-items: center; margin-bottom: 24px;">
                 <button class="btn-back" onclick="openApp('试衣间', 'OOTD 穿搭鉴定')" style="margin: 0; margin-right: 12px; width: 44px; height: 44px;">
                     <svg class="svg-icon" style="width: 22px; height: 22px;" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
@@ -29670,6 +29665,7 @@ async function renderDeviceDesktop(aiId) {
                 <div class="diary-tab active" id="tabPeekDelusion" onclick="switchPeekTab('delusion', '${aiId}')" style="border-radius: 10px 10px 0 0; padding: 8px 16px;">私密妄想</div>
                 <div class="diary-tab" id="tabPeekMemo" onclick="switchPeekTab('memo', '${aiId}')" style="border-radius: 10px 10px 0 0; padding: 8px 16px;">私密备忘录</div>
                 <div class="diary-tab" id="tabPeekDiary" onclick="switchPeekTab('diary', '${aiId}')" style="border-radius: 10px 10px 0 0; padding: 8px 16px;">隐藏日记</div>
+                <div class="diary-tab" id="tabPeekFav" onclick="switchPeekTab('fav', '${aiId}')" style="border-radius: 10px 10px 0 0; padding: 8px 16px; color: var(--color-yellow);">★ 收藏匣</div>
             </div>
             
             <div id="peekSubArea" style="flex:1; overflow-y:auto; padding: 16px; background: #111;"></div>
@@ -29682,7 +29678,7 @@ async function renderDeviceDesktop(aiId) {
 // 4. Tab 切换逻辑 (处理圆角和颜色)
 window.switchPeekTab = async function(tab, aiId) {
     window.currentPeekTab = tab;
-    ['delusion', 'memo', 'diary'].forEach(t => {
+    ['delusion', 'memo', 'diary', 'fav'].forEach(t => {
         const el = document.getElementById('tabPeek' + t.charAt(0).toUpperCase() + t.slice(1));
         if(el) {
             if(t === tab) {
@@ -29705,11 +29701,14 @@ window.switchPeekTab = async function(tab, aiId) {
     if (tab === 'delusion') await renderPeekDelusion(aiId, area);
     else if (tab === 'memo') await renderPeekMemos(aiId, area);
     else if (tab === 'diary') await renderPeekDiary(aiId, area);
+    else if (tab === 'fav') await showPeekFavorites(aiId, area);
 };
 
 // 强制重新生成函数
 window.forceRegeneratePeek = async function(tab, aiId) {
-    window.peekAppCache[tab][aiId] = null; // 清除缓存
+    let cacheKey = (tab === 'delusion') ? 'chat' : tab;
+    if (!window.peekAppCache[cacheKey]) window.peekAppCache[cacheKey] = {};
+    window.peekAppCache[cacheKey][aiId] = null; // 清除缓存
     savePeekCache();
     
     // 如果是妄想页，直接跳过警告界面生成新的
@@ -29792,11 +29791,14 @@ window.generatePeekDelusion = async function(aiId) {
             let html = `
                 <div style="font-size:12px; font-weight:900; opacity:0.8; margin-bottom: 12px; color:#ff3333; font-family: monospace;">> NEURAL_LOG_DECRYPTED...</div>
                 <div style="background: #1a0505; border: 1px solid #ff3333; padding: 16px; border-radius: 8px; box-shadow: 0 0 10px rgba(255,51,51,0.2) inset;">
-                    <div style="color: #ffb8b8; font-size: 14px; line-height: 1.8; text-align: justify; font-family: serif; letter-spacing: 0.5px;">
+                    <div id="peekContent_delusion" style="color: #ffb8b8; font-size: 14px; line-height: 1.8; text-align: justify; font-family: serif; letter-spacing: 0.5px;">
                         ${reply.trim().replace(/\n+/g, '<br><br>')}
                     </div>
                 </div>
-                <button class="form-btn" style="width:100%; background:#2C2F33; color:#ff3333; border-color:#555; margin-top:20px; box-shadow: 3px 3px 0 #000; font-family: monospace;" onclick="forceRegeneratePeek('delusion', '${aiId}')">提取更深层的妄想画面</button>
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button class="form-btn" style="flex:1; background:var(--color-yellow); color:#111; border-color:#111; box-shadow: 3px 3px 0 #000; font-family: monospace;" onclick="savePeekFav('${aiId}', '私密妄想', document.getElementById('peekContent_delusion').innerHTML)">⭐ 收藏</button>
+                    <button class="form-btn" style="flex:2; background:#2C2F33; color:#ff3333; border-color:#555; box-shadow: 3px 3px 0 #000; font-family: monospace;" onclick="forceRegeneratePeek('delusion', '${aiId}')">提取更深层画面</button>
+                </div>
             `;
             
             // 存入缓存
@@ -29859,11 +29861,14 @@ async function renderPeekMemos(aiId, area) {
             `}).join('');
 
             let html = `
-                <div class="memo-card" style="background: #2C2F33; border: 2px solid #555; box-shadow: 4px 4px 0 #000;">
+                <div id="peekContent_memo" class="memo-card" style="background: #2C2F33; border: 2px solid #555; box-shadow: 4px 4px 0 #000;">
                     <div class="memo-card-title" style="color: #ff6b81; border-bottom: 1px dashed #555; padding-bottom: 8px; margin-bottom: 12px;">私密待办 / 杂念</div>
                     <div class="memo-check-grid">${itemsHtml}</div>
                 </div>
-                <button class="form-btn" style="width:100%; background:#1A1C1E; color:#E2E2E2; border-color:#555; margin-top:20px; box-shadow: 3px 3px 0 #000;" onclick="forceRegeneratePeek('memo', '${aiId}')">刷新深层文档</button>
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button class="form-btn" style="flex:1; background:var(--color-yellow); color:#111; border-color:#111; box-shadow: 3px 3px 0 #000; font-family: monospace;" onclick="savePeekFav('${aiId}', '备忘录', document.getElementById('peekContent_memo').outerHTML)">⭐ 收藏</button>
+                    <button class="form-btn" style="flex:2; background:#1A1C1E; color:#E2E2E2; border-color:#555; box-shadow: 3px 3px 0 #000; font-family: monospace;" onclick="forceRegeneratePeek('memo', '${aiId}')">刷新深层文档</button>
+                </div>
             `;
             window.peekAppCache.memo[aiId] = html;
             savePeekCache();
@@ -29912,13 +29917,16 @@ async function renderPeekDiary(aiId, area) {
             const timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
             let html = `
-                <div class="diary-box" style="background: #1A1C1E; border-color: #555; box-shadow: 4px 4px 0 #000; padding: 16px;">
+                <div id="peekContent_diary" class="diary-box" style="background: #1A1C1E; border-color: #555; box-shadow: 4px 4px 0 #000; padding: 16px;">
                     <div style="font-size: 11px; font-weight: 900; color: #ff6b81; margin-bottom: 8px;">[被加密的文档] 凌晨 ${timeStr}</div>
                     <div style="font-size: 14px; font-weight: bold; line-height: 1.8; color: #E2E2E2; text-align: justify;">
                         ${reply.replace(/\n/g, '<br>')}
                     </div>
                 </div>
-                <button class="form-btn" style="width:100%; background:#2C2F33; color:#ff6b81; border-color:#ff6b81; margin-top:20px; box-shadow: 3px 3px 0 #ff6b81;" onclick="forceRegeneratePeek('diary', '${aiId}')">继续破解下一篇</button>
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button class="form-btn" style="flex:1; background:var(--color-yellow); color:#111; border-color:#111; box-shadow: 3px 3px 0 #ff6b81; font-family: monospace;" onclick="savePeekFav('${aiId}', '隐藏日记', document.getElementById('peekContent_diary').innerHTML)">⭐ 收藏</button>
+                    <button class="form-btn" style="flex:2; background:#2C2F33; color:#ff6b81; border-color:#ff6b81; box-shadow: 3px 3px 0 #ff6b81; font-family: monospace;" onclick="forceRegeneratePeek('diary', '${aiId}')">继续破解下一篇</button>
+                </div>
             `;
             window.peekAppCache.diary[aiId] = html;
             savePeekCache();
@@ -30078,6 +30086,52 @@ window.deleteRpArchive = async function(npcId, archiveId) {
     window.openRpArchiveList(npcId); // 重新打开列表刷新
 };
 
+// 窥探收藏功能核心引擎
+window.savePeekFav = async function(aiId, type, htmlContent) {
+    let favs = await getDB('peek_favorites', {});
+    if(!favs[aiId]) favs[aiId] = [];
+    favs[aiId].unshift({
+        id: Date.now(),
+        type: type,
+        date: new Date().toLocaleString(),
+        html: htmlContent
+    });
+    await setDB('peek_favorites', favs);
+    uiAlert("⭐ 收藏成功！已存入收藏匣，再也不怕被刷掉了。");
+};
+
+window.showPeekFavorites = async function(aiId, area) {
+    let favs = await getDB('peek_favorites', {});
+    let myFavs = favs[aiId] ||[];
+    
+    if (myFavs.length === 0) {
+        area.innerHTML = '<div style="text-align:center; padding:40px 20px; font-weight:900; color:#aaa; font-family:monospace;">收藏匣空空如也。</div>';
+        return;
+    }
+    
+    let html = '<div style="display:flex; flex-direction:column; gap:16px; padding-bottom:20px;">';
+    myFavs.forEach(f => {
+        html += `
+            <div style="background: #1A1C1E; border: 2px solid #555; padding: 16px; border-radius: 12px; box-shadow: 4px 4px 0 #000; position:relative;">
+                <div style="font-size:12px; font-weight:900; color:var(--color-yellow); margin-bottom:12px; font-family:monospace;">[ ${f.type} ] <span style="color:#aaa; font-size:10px; margin-left:6px;">${f.date}</span></div>
+                <div style="color: #E2E2E2;">${f.html}</div>
+                <div onclick="deletePeekFav('${aiId}', ${f.id})" style="position: absolute; top: -8px; right: -8px; width: 26px; height: 26px; background: var(--color-pink); border: 2px solid #111; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; cursor: pointer; color: #111; box-shadow: 2px 2px 0 #111;">×</div>
+            </div>
+        `;
+    });
+    html += '</div>';
+    area.innerHTML = html;
+};
+
+window.deletePeekFav = async function(aiId, id) {
+    let favs = await getDB('peek_favorites', {});
+    if(favs[aiId]) {
+        favs[aiId] = favs[aiId].filter(f => f.id !== id);
+        await setDB('peek_favorites', favs);
+        const area = document.getElementById('peekSubArea');
+        if (area) showPeekFavorites(aiId, area); // 原地刷新
+    }
+};
 </script>
 
 </body>
