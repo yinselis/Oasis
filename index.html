@@ -4866,6 +4866,21 @@ async function saveProfile(type, id) {
                 }
             }
         }
+    } else if (type === 'user') {
+        // === 桥接系统：将“我的档案”资料强制同步到“当前终端账号” ===
+        let cybAccounts = await getDB('cyb_accounts',[]);
+        let currentCybId = await getDB('cyb_current_account_id', null);
+        if (cybAccounts.length > 0 && currentCybId) {
+            let accIdx = cybAccounts.findIndex(a => a.id === currentCybId);
+            if (accIdx > -1) {
+                cybAccounts[accIdx].name = name;
+                cybAccounts[accIdx].bio = bio;
+                if (tempAvatarB64 !== undefined) cybAccounts[accIdx].avatarB64 = tempAvatarB64;
+                cybAccounts[accIdx].coverUrl = coverUrl;
+                cybAccounts[accIdx].coverB64 = finalCoverB64;
+                await setDB('cyb_accounts', cybAccounts);
+            }
+        }
     }
     // ========================================================
 
