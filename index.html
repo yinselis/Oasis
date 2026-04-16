@@ -7014,136 +7014,105 @@ const context = history.slice(-20).map(m => {
     }
 }
 
-async function sendPhoneMessage(aiProfileId, isInitialCall = false) {
+// 粘贴这段全新的正确代码
+async function sendPhoneMessage(authorId, isInitialCall = false) {
     const input = document.getElementById('phoneInput');
-    const text = isInitialCall ? null : input.value.trim();
+    const text = isInitialCall ? null : (input ? input.value.trim() : null);
     if (!isInitialCall && !text) return;
 
+    let userMessageObject = null;
     if (!isInitialCall) {
-        const userLine = { id: Date.now(), aiProfileId, speaker: 'user', text };
+        userMessageObject = {
+            role: 'user',
+            content: text
+        };
+        const userLine = { id: Date.now(), aiProfileId: authorId, speaker: 'user', text };
         currentCallLog.push(userLine);
         updateLiveTranscript(userLine);
-        input.value = '';
+        if (input) input.value = '';
     }
 
     const btn = document.getElementById('sendPhoneBtn');
     if(btn) btn.disabled = true;
-    
-    // 【新】显示正在输入提示
     showTypingIndicator(true);
 
-    // 1. 获取全局配置的 API 信息
     const apiUrl = await getDB('apiUrl');
     const apiKey = await getDB('apiKey');
     const model = await getDB('aiModel');
+    const aiTemp = await getDB('aiTemperature', 0.8);
 
-    if(!apiUrl || !apiKey) {
+    if(!apiUrl || !apiKey || !model) {
         showTypingIndicator(false);
         updateLiveTranscript({ speaker: 'char', text: '【系统提示】：请先去“设置”中配置 API。' });
         if(btn) btn.disabled = false;
         return;
     }
 
-const allProfiles = await getDB('ai_profiles', []);
-const aiProfile = allProfiles.find(p => p.id === aiProfileId);
+    let allProfiles = await getDB('ai_profiles', []);
+    let aiProfile = allProfiles.find(p => p.id === authorId);
+    if(!aiProfile) aiProfile = { name: '对方', bio: '' };
+    
+    let userProfiles = await getDB('user_profiles', []);
+    let defaultUser = userProfiles.length > 0 ? userProfiles[0] : { name: '你', bio: '' };
+    
+    const callerIdentity = window._isPhoneAnonymous 
+        ? "一个【未知/匿名/隐藏号码】。你完全不知道对方是谁。"
+        : `你【已备注/熟悉】的用户，她的设定是：“${defaultUser.bio}”`;
 
-// --- 抓取用户身份资料 ---
-const userProfiles = await getDB('user_profiles', []);
-const defaultUser = userProfiles.length > 0 ? userProfiles[0] : null;
+    const systemPrompt = isInitialCall
+        ? `你叫 ${aiProfile.name}，设定：${aiProfile.bio}。\n你接到了${callerIdentity}\n请用【符合你性格的一句话】简短回应。`
+        : `你正在和${callerIdentity}通电话。你的名字是 ${aiProfile.name}，你的设定是：${aiProfile.bio}。\n请你完全代入这个角色，用口语化、自然的语气进行对话。`;
 
-const currentCybId = await getDB('cyb_current_account_id', null);
-const cybAccounts = await getDB('cyb_accounts', []);
-const activeCybAccount = cybAccounts.find(a => a.id === currentCybId) || (cybAccounts.length > 0 ? cybAccounts[0] : null);
+    const coreRules = `\n\n【核心规则】：
+1.  连发格式：如果你想说多段话，请必须使用 "---" 进行分隔来拆分你的语言！例如："说话---再不说话我挂了。"（绝对不要使用换行符！）
+2.  语言与翻译：中国人全用中文；如果是外国人或使用方言、粤语，【每段话】都必须严格按照“外文或方言原文|---|标准普通话翻译”的格式输出！例如："Are you there?|---|你在吗？---Speak.|---|说话。"
+3.  电话沉浸感（防OOC）：
+    -   【绝对禁止】在每句话的首尾添加任何形式的引号（如「」、“”、"" 等），直接输出口语文字即可！
+    -   【绝对禁止】使用 emoji 表情符号。
+    -   电话交流是来回互动的，不要一次性长篇大论，保留让对方说话的余地。
+    -   绝对禁止输入任何动作或心理描写。`;
 
-// --- 提取终端(对话APP)的近期聊天记录 ---
-const cybChatsDb = await getDB('cyb_chats', {});
-let recentCybChats = [];
-if (activeCybAccount && cybChatsDb[activeCybAccount.id] && cybChatsDb[activeCybAccount.id][aiProfileId]) {
-    recentCybChats = cybChatsDb[activeCybAccount.id][aiProfileId].slice(-15);
-}
-let cybMemoryText = '';
-if (recentCybChats.length > 0) {
-    let cleanCybChats = recentCybChats.map(m => {
-        let txt = m.content || '';
-        if (txt.includes('|---|')) txt = txt.split('|---|')[0];
-        return `${m.role === 'user' ? '我' : '你'}: ${txt.replace(/\\n/g, ' ')}`;
-    }).join('\\n');
-    cybMemoryText = '\\n【系统强制记忆：你们近期在"网络聊天软件"上刚聊过天，记录如下：】\\n' + cleanCybChats + '\\n【请你在接电话时保持这份记忆连贯，顺着刚才聊过的话题继续往下说！】\\n';
-}
-
-let userIdentityStr = "你【已备注/熟悉】的用户。";
-if (defaultUser && (defaultUser.name || defaultUser.bio)) {
-    userIdentityStr += `她真名叫“${defaultUser.name || '未知'}”，背景设定是：“${defaultUser.bio || '无'}”。`;
-} else if (activeCybAccount && (activeCybAccount.name || activeCybAccount.bio)) {
-    userIdentityStr += `她网名叫“${activeCybAccount.name || '未知'}”，个性签名是：“${activeCybAccount.bio || '无'}”。`;
-}
-
-// --- 核心匿名判定逻辑（细化不同性格对陌生人的反应） ---
-const callerIdentity = window._isPhoneAnonymous 
-    ? "一个【未知/匿名/隐藏号码】。你完全不知道对方是谁。请【务必根据你的性格设定】做出第一反应：如果你性格暴躁可能会不耐烦质问；如果你性格礼貌会谨慎询问；如果你性格内向/社恐可能会犹豫、沉默甚至想挂断。表现出符合你人设的疑惑、警惕或随意。"
-    : `${userIdentityStr} 请【务必根据你们当前的关系设定和好感度】调整语气：如果是恋人/暧昧对象，语气应亲昵或拉扯；如果是仇敌/对手，语气应冷漠或嘲讽；如果是朋友，语气应轻松随意；如果是上下级，应保持相应的礼貌或威严。`;
-  
-// --- 构建系统提示词（强化电话场景和防OOC规则） ---
-const systemPrompt = isInitialCall
-    ? `你叫 ${aiProfile.name}，设定：${aiProfile.bio}。\n你接到了${callerIdentity}\n请用【符合你性格的一句话】简短回应。`
-    : `你正在和${callerIdentity}通电话。你的名字是 ${aiProfile.name}，你的设定是：${aiProfile.bio}。\n请你完全代入这个角色，用口语化、自然的语气进行对话。`;
-
-const coreRules = `\n\n【核心规则】：
-1. 连发格式：如果你想说多段话，请必须使用 "---" 进行分隔来拆分你的语言！例如："说话---再不说话我挂了。"（绝对不要使用换行符！）
-2. 语言与翻译：中国人全用中文；如果是外国人或使用方言、粤语，【每段话】都必须严格按照“外文或方言原文|---|标准普通话翻译”的格式输出！例如："Are you there?|---|你在吗？---Speak.|---|说话。"
-3. 电话沉浸感（防OOC）：
-   - 【绝对禁止】在每句话的首尾添加任何形式的引号（如「」、“”、"" 等），直接输出口语文字即可！
-   - 【绝对禁止】使用 emoji 表情符号。
-   - 必须严格遵守人物性格、时代背景。
-   - 这正在打电话！请多用符合人设的口语习惯（如：嗯、啊、喂、那什么、轻笑、叹气、沉默）。
-   - 电话交流是来回互动的，不要一次性长篇大论，保留让对方说话的余地。
-   - 绝对禁止输入任何动作或心理描写。`;
-
-    // 修复点：将 coreRules 成功拼接入系统 Prompt 中！
     let messages = [{ role: 'system', content: systemPrompt + coreRules }];
     
-    // 把通话记录放进上下文
-    currentCallLog.forEach(line => messages.push({ role: line.speaker === 'user' ? 'user' : 'assistant', content: line.text }));
+    currentCallLog.forEach(line => {
+        messages.push({ role: line.speaker === 'user' ? 'user' : 'assistant', content: line.text });
+    });
+
+    // ✅ 核心修复：把图片和文字打包在一起
+    if (userMessageObject) {
+        let contentPayload = [{ type: "text", text: userMessageObject.content }];
+        messages[messages.length - 1] = { role: "user", content: contentPayload };
+    }
 
     try {
-        // 2. 真实执行 API 请求
         const endpoint = apiUrl.replace(/\/+$/, '') + (apiUrl.includes('/v1') ? '/chat/completions' : '/v1/chat/completions');
         const res = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-            body: JSON.stringify({ model: model, messages: messages, temperature: 0.85 })
+            body: JSON.stringify({ model, messages, temperature: aiTemp })
         });
         
-        const data = await res.json(); if(data && data.error) uiAlert("API报错: " + (data.error.message || "未知错误"));
-        showTypingIndicator(false); // 收到回复，隐藏提示
+        const data = await res.json();
+        showTypingIndicator(false);
+        if (data && data.error) { uiAlert("API报错: " + (data.error.message || "未知错误")); return; }
         
         if (data.choices && data.choices[0]) {
-    let rawContent = data.choices[0].message.content || '';
-    
-    // 修复点：强力剔除 AI 擅自加上的各种多余引号对白符号
-    rawContent = rawContent.replace(/[「」“”"]/g, '');
-    // 修复点：如果 AI 不听话使用了换行，强行将所有换行转化为切分气泡的分割符
-    rawContent = rawContent.replace(/\n+/g, '---');
-
-    // 【防腰斩修复】：先将翻译的 |---| 替换成安全字符，切分完气泡后再还原
-    const replies = rawContent
-        .replace(/\|---\|/g, '___TRANS___') 
-        .split('---')
-        .map(s => s.trim().replace(/___TRANS___/g, '|---|'))
-        .filter(Boolean);
-    
-    for (const reply of replies) {
-                const charLine = { id: Date.now(), aiProfileId, speaker: 'char', text: reply };
+            let rawContent = data.choices[0].message.content || '';
+            rawContent = rawContent.replace(/[「」“”"]/g, '').replace(/\n+/g, '---');
+            
+            const replies = rawContent.replace(/\|---\|/g, '___TRANS___').split('---').map(s => s.trim().replace(/___TRANS___/g, '|---|')).filter(Boolean);
+            
+            for (const reply of replies) {
+                const charLine = { id: Date.now(), aiProfileId: authorId, speaker: 'char', text: reply };
                 currentCallLog.push(charLine);
                 updateLiveTranscript(charLine);
-                // 停顿一下，让多句话发出来有真实感
                 await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 500));
             }
         } else {
             updateLiveTranscript({ speaker: 'char', text: '（对面似乎出了点问题，没接上话）' });
         }
     } catch (e) {
-        console.error("电话API请求失败:", e); // 把真实报错打印在控制台方便排查
+        console.error("电话API请求失败:", e);
         showTypingIndicator(false);
         updateLiveTranscript({ speaker: 'char', text: '滋...滋...（信号断了）' });
     } finally {
@@ -12543,244 +12512,55 @@ function renderWalkXChatListHtml(chatList) {
     }).join('');
 }
 
+// 把这段修复后的代码粘贴回去
 function renderWalkXChatMessage(msg) {
+    // ✅ 核心修复：如果消息对象不存在或内容为空，直接返回一个空的字符串，中断渲染，防止卡死
+    if (!msg || !msg.content) return ''; 
+
     const roleClass = msg.role === 'user' ? 'me' : 'npc';
     const mediaInfo = parseWalkXMediaMessage(msg.content || '');
-    
-    // 拉黑发送失败的红色感叹号
     const failedIcon = msg.failed ? `<div style="color:#e74c3c; font-weight:900; font-size:16px; margin: 0 6px; display:flex; align-items:center;">!</div>` : '';
-// 【新增】处理系统提示的渲染 (变成灰色小字)
-if (msg.content && msg.content.startsWith('[系统提示]')) {
-    let sysText = msg.content.replace('[系统提示]', '').trim();
-    let sysHtml = `
-    <div style="text-align:center; padding: 10px 0; margin-bottom: 12px;" oncontextmenu="event.preventDefault(); openWalkXBubbleActionModal('${msg.id}', '${walkXCurrentProfileId}')" ontouchstart="this._touchTimer = setTimeout(() => { openWalkXBubbleActionModal('${msg.id}', '${walkXCurrentProfileId}'); }, 600);" ontouchend="clearTimeout(this._touchTimer);" ontouchcancel="clearTimeout(this._touchTimer);" ontouchmove="clearTimeout(this._touchTimer);">
-        <span style="font-size:11px; font-weight:900; opacity:0.6; background:var(--neo-bg); border: 2px solid var(--line-color); padding:6px 14px; border-radius:12px; box-shadow: 2px 2px 0 var(--line-color); color:var(--text-main); display:inline-block; max-width:85%; line-height:1.5;">${sysText}</span>
-    </div>`;
-    
-    if (window.isWalkXMultiSelectMode) {
-        sysHtml = sysHtml.replace(/oncontextmenu=".*?"/g, '').replace(/ontouchstart=".*?"/g, '').replace(/ontouchend=".*?"/g, '').replace(/ontouchcancel=".*?"/g, '').replace(/ontouchmove=".*?"/g, '');
-        return `
-        <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px; cursor:pointer; padding-left:4px;" onclick="toggleWalkXMsgSelect('${msg.id}')">
-            <input type="checkbox" id="cb_${msg.id}" style="transform:scale(1.4); accent-color:var(--color-pink); pointer-events:none; flex-shrink:0;" ${window.walkXSelectedMsgs.has(String(msg.id)) ? 'checked' : ''}>
-            <div style="flex:1; pointer-events:none;">${sysHtml}</div>
+
+    if (msg.content.startsWith('[系统提示]')) {
+        let sysText = msg.content.replace('[系统提示]', '').trim();
+        let sysHtml = `
+        <div style="text-align:center; padding: 10px 0; margin-bottom: 12px;" oncontextmenu="event.preventDefault(); openWalkXBubbleActionModal('${msg.id}', '${walkXCurrentProfileId}')" ontouchstart="this._touchTimer = setTimeout(() => { openWalkXBubbleActionModal('${msg.id}', '${walkXCurrentProfileId}'); }, 600);" ontouchend="clearTimeout(this._touchTimer);" ontouchcancel="clearTimeout(this._touchTimer);" ontouchmove="clearTimeout(this._touchTimer);">
+            <span style="font-size:11px; font-weight:900; opacity:0.6; background:var(--neo-bg); border: 2px solid var(--line-color); padding:6px 14px; border-radius:12px; box-shadow: 2px 2px 0 var(--line-color); color:var(--text-main); display:inline-block; max-width:85%; line-height:1.5;">${sysText}</span>
         </div>`;
+        if (window.isWalkXMultiSelectMode) {
+            sysHtml = sysHtml.replace(/oncontextmenu=".*?"/g, '').replace(/ontouchstart=".*?"/g, '').replace(/ontouchend=".*?"/g, '').replace(/ontouchcancel=".*?"/g, '').replace(/ontouchmove=".*?"/g, '');
+            return `
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px; cursor:pointer; padding-left:4px;" onclick="toggleWalkXMsgSelect('${msg.id}')">
+                <input type="checkbox" id="cb_${msg.id}" style="transform:scale(1.4); accent-color:var(--color-pink); pointer-events:none; flex-shrink:0;" ${window.walkXSelectedMsgs.has(String(msg.id)) ? 'checked' : ''}>
+                <div style="flex:1; pointer-events:none;">${sysHtml}</div>
+            </div>`;
+        }
+        return sysHtml;
     }
-    return sysHtml;
-}
+
     if (mediaInfo) {
-    if (mediaInfo.type === 'call') {
-    return `
-    <div style="display:flex; justify-content:center; margin-bottom: 12px;" oncontextmenu="event.preventDefault(); openWalkXBubbleActionModal('${msg.id}', '${walkXCurrentProfileId}')" ontouchstart="this._touchTimer = setTimeout(() => { openWalkXBubbleActionModal('${msg.id}', '${walkXCurrentProfileId}'); }, 600);" ontouchend="clearTimeout(this._touchTimer);" ontouchcancel="clearTimeout(this._touchTimer);" ontouchmove="clearTimeout(this._touchTimer);">
-        <div style="background:var(--neo-bg); padding:6px 16px; border-radius:16px; border:2px dashed var(--line-color); font-size:12px; font-weight:900; opacity:0.7; display:flex; align-items:center; gap:6px; cursor:default; box-shadow: 2px 2px 0 var(--line-color);">
-            <svg viewBox="0 0 24 24" style="width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-            通话结束 · ${escapeEchoText(mediaInfo.desc)}
-        </div>
-    </div>`;
-}
-
-if (mediaInfo.type === 'transfer') {
-    const isUser = msg.role === 'user';
-    const shadow = isUser ? '-3px 3px 0 var(--line-color)' : '3px 3px 0 var(--line-color)';
-    const receivedAmount = Math.floor(mediaInfo.amount * 0.7);
-    const feeAmount = mediaInfo.amount - receivedAmount;
-    const targetDesc = isUser ? '已收款' : '你已收款';
-
-    return `
-    <div style="display:flex; align-items:center; justify-content:${isUser ? 'flex-end' : 'flex-start'}; margin-bottom: 14px;" oncontextmenu="event.preventDefault(); openWalkXBubbleActionModal('${msg.id}', '${walkXCurrentProfileId}')" ontouchstart="this._touchTimer = setTimeout(() => { openWalkXBubbleActionModal('${msg.id}', '${walkXCurrentProfileId}'); }, 600);" ontouchend="clearTimeout(this._touchTimer);" ontouchcancel="clearTimeout(this._touchTimer);" ontouchmove="clearTimeout(this._touchTimer);">
-        ${isUser ? failedIcon : ''}
-        
-        <div class="x-chat-transfer-card ${roleClass}" style="box-shadow: ${shadow};">
-            <div class="x-chat-transfer-icon">
-                <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-            </div>
-            <div class="x-chat-transfer-info">
-                <div class="x-chat-transfer-amount">P ${mediaInfo.amount}</div>
-                <div class="x-chat-transfer-desc">${escapeEchoText(mediaInfo.desc)}</div>
-                <div class="x-chat-transfer-fee">${targetDesc} (手续费已扣 ${feeAmount})</div>
-            </div>
-        </div>
-
-        ${!isUser ? failedIcon : ''}
-    </div>`;
-}
-
-if (mediaInfo.type === 'gift') {
-    const isUser = msg.role === 'user';
-    const shadow = isUser ? '-3px 3px 0 var(--line-color)' : '3px 3px 0 var(--line-color)';
-    const receivedAmount = Math.floor(mediaInfo.price * 0.2); 
-    const feeAmount = mediaInfo.price - receivedAmount;
-    const svgIcon = getGiftSvg(mediaInfo.giftId);
-
-    return `
-    <div style="display:flex; align-items:center; justify-content:${isUser ? 'flex-end' : 'flex-start'}; margin-bottom: 14px;" oncontextmenu="event.preventDefault(); openWalkXBubbleActionModal('${msg.id}', '${walkXCurrentProfileId}')" ontouchstart="this._touchTimer = setTimeout(() => { openWalkXBubbleActionModal('${msg.id}', '${walkXCurrentProfileId}'); }, 600);" ontouchend="clearTimeout(this._touchTimer);" ontouchcancel="clearTimeout(this._touchTimer);" ontouchmove="clearTimeout(this._touchTimer);">
-        ${isUser ? failedIcon : ''}
-        
-        <div class="x-chat-transfer-card ${roleClass}" style="box-shadow: ${shadow}; background: var(--color-pink);">
-            <div class="x-chat-transfer-icon" style="border-color: var(--line-color); background: var(--bg-color); display:flex; align-items:center; justify-content:center; width:40px; height:40px; flex-shrink:0;">
-                ${svgIcon}
-            </div>
-            <div class="x-chat-transfer-info">
-                <div class="x-chat-transfer-amount">${mediaInfo.name} (P ${mediaInfo.price})</div>
-                <div class="x-chat-transfer-desc">${escapeEchoText(mediaInfo.desc)}</div>
-                <div class="x-chat-transfer-fee">黑心平台抽成 80% (扣除 ${feeAmount} P币)</div>
-            </div>
-        </div>
-
-        ${!isUser ? failedIcon : ''}
-    </div>`;
-}
-
-if (mediaInfo.type === 'date') {
-    const isUser = msg.role === 'user';
-    const shadow = isUser ? '-3px 3px 0 var(--line-color)' : '3px 3px 0 var(--line-color)';
-    const isPay = mediaInfo.desc.includes('待支付');
-    const bg = isPay ? 'var(--color-yellow)' : 'var(--color-pink)';
-    const icon = isPay ? '💸' : '💌';
-    const headerText = isPay ? '待支付账单' : '已付款邀约';
-
-    return `
-    <div style="display:flex; align-items:center; justify-content:${isUser ? 'flex-end' : 'flex-start'}; margin-bottom: 14px;">
-        <div style="background: var(--neo-bg); border: 2.5px solid var(--line-color); width: 250px; max-width: 85%; border-radius: 16px; box-shadow: ${shadow}; overflow: hidden; display: flex; flex-direction: column;">
-            <div style="background: ${bg}; border-bottom: 2.5px solid var(--line-color); padding: 10px 14px; display: flex; align-items: center; justify-content: space-between;">
-                <span style="font-size: 14px; font-weight: 900; color: #111; display:flex; align-items:center; gap:6px;">${icon} ${headerText}</span>
-                <span style="font-size: 11px; font-weight: 900; color: #111; opacity:0.6;">来自地下集市</span>
-            </div>
-            <div style="padding: 14px;">
-                <div style="font-size: 16px; font-weight: 900; margin-bottom: 10px; color:var(--text-main); border-bottom: 1px dashed rgba(0,0,0,0.1); padding-bottom: 8px;">${mediaInfo.title}</div>
-                <div style="font-size: 13px; font-weight: bold; opacity: 0.8; line-height:1.6; color:var(--text-main); white-space: pre-wrap;">${mediaInfo.desc.replace(/\\n/g, '<br>')}</div>
-            </div>
-        </div>
-    </div>`;
-}
-
-if (mediaInfo.type === 'cyb_card') {
-    const isUser = msg.role === 'user';
-    const shadow = isUser ? '-3px 3px 0 var(--line-color)' : '3px 3px 0 var(--line-color)';
-    // 自动剔除隐形的识别代码，不让它在界面上露馅
-    const cDesc = (mediaInfo.desc || '').replace(/\[\[CYB_ID:.*?\]\]\n?/g, '').trim();
-
-    return `
-    <div style="display:flex; align-items:center; justify-content:${isUser ? 'flex-end' : 'flex-start'}; margin-bottom: 14px;" oncontextmenu="event.preventDefault(); openWalkXBubbleActionModal('${msg.id}', '${walkXCurrentProfileId}')" ontouchstart="this._touchTimer = setTimeout(() => { openWalkXBubbleActionModal('${msg.id}', '${walkXCurrentProfileId}'); }, 600);" ontouchend="clearTimeout(this._touchTimer);" ontouchcancel="clearTimeout(this._touchTimer);" ontouchmove="clearTimeout(this._touchTimer);">
-        ${isUser ? failedIcon : ''}
-        
-        <div style="background: var(--bg-color); border: 2.5px solid var(--line-color); width: 240px; max-width: 85%; border-radius: 16px; box-shadow: ${shadow}; overflow: hidden; cursor: default; flex-shrink: 0; display: flex; flex-direction: column;">
-            <div style="background: var(--color-purple); border-bottom: 2.5px solid var(--line-color); padding: 8px 12px; display: flex; align-items: center; gap: 8px;">
-                <div style="background: var(--neo-bg); width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--line-color); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                    <svg viewBox="0 0 24 24" style="width:12px; height:12px; fill:none; stroke:var(--text-main); stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round;"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-                </div>
-                <span style="font-size: 13px; font-weight: 900; color: #fff;">终端通行证</span>
-            </div>
-            <div style="padding: 14px; background: var(--neo-bg); flex: 1;">
-                <div style="font-size: 16px; font-weight: 900; margin-bottom: 4px; color: var(--color-purple);">${escapeEchoText(mediaInfo.title)}</div>
-                <div style="font-size: 12px; font-weight: bold; line-height: 1.5; color: var(--text-main); opacity: 0.8;">${cDesc.replace(/\n/g, '<br>')}</div>
-            </div>
-        </div>
-
-        ${!isUser ? failedIcon : ''}
-    </div>`;
-}
-
-    if (mediaInfo.type === 'forward') {
-    const isUser = msg.role === 'user';
-    
-    // 修复双 @ 问题并做安全转义
-    let authorHandle = escapeEchoText(mediaInfo.title).replace(/^@+/, '@');
-    let rawDesc = escapeEchoText(mediaInfo.desc || '');
-    
-    // 核心优化：抓取并剔除文本中丑陋的 [包含视频/图片: xxx]，将其转化为精美悬浮小标签
-    let mediaTagHtml = '';
-    rawDesc = rawDesc.replace(/(?:<br>\s*)*\[包含(视频|图片)[：:](.*?)\]/g, (match, type, name) => {
-        const isVideo = type === '视频';
-        // 根据类型显示播放键或图片键
-        const iconSvg = isVideo 
-            ? '<polygon points="8,5 19,12 8,19" fill="var(--text-main)"></polygon>' 
-            : '<rect x="3" y="3" width="18" height="18" rx="2" ry="2" fill="none" stroke="var(--text-main)" stroke-width="2"></rect><circle cx="8.5" cy="8.5" r="1.5" fill="var(--text-main)"></circle><polyline points="21 15 16 10 5 21" fill="none" stroke="var(--text-main)" stroke-width="2"></polyline>';
-        
-        const tagBg = isVideo ? 'var(--color-pink)' : 'var(--color-yellow)';
-        
-        mediaTagHtml = `
-            <div style="margin-top: 14px; display: inline-flex; align-items: center; gap: 6px; background: ${tagBg}; border: 2px solid var(--line-color); border-radius: 10px; padding: 6px 12px; font-size: 11px; font-weight: 900; box-shadow: 2px 2px 0 var(--line-color);">
-                <svg viewBox="0 0 24 24" style="width:14px; height:14px;">${iconSvg}</svg>
-                <span style="color: var(--text-main);">${type}: ${name.trim()}</span>
-            </div>
-        `;
-        return ''; // 将这段丑陋的文字从正文中彻底抹去
-    }).trim();
-
-    // 阴影跟随发送人方向
-    const shadow = isUser ? '-3px 3px 0 var(--line-color)' : '3px 3px 0 var(--line-color)';
-
-    return `
-    <div style="display:flex; align-items:center; justify-content:${isUser ? 'flex-end' : 'flex-start'}; margin-bottom: 14px;" oncontextmenu="event.preventDefault(); openWalkXBubbleActionModal('${msg.id}', '${walkXCurrentProfileId}')" ontouchstart="this._touchTimer = setTimeout(() => { openWalkXBubbleActionModal('${msg.id}', '${walkXCurrentProfileId}'); }, 600);" ontouchend="clearTimeout(this._touchTimer);" ontouchcancel="clearTimeout(this._touchTimer);" ontouchmove="clearTimeout(this._touchTimer);">
-        ${isUser ? failedIcon : ''}
-        
-        <!-- 独立卡片主体 -->
-        <div style="background: var(--bg-color); border: 2.5px solid var(--line-color); width: 260px; max-width: 82%; border-radius: 16px; box-shadow: ${shadow}; overflow: hidden; cursor: default; flex-shrink: 0; display: flex; flex-direction: column;">
-            
-            <!-- 顶部小窗标题栏 -->
-            <div style="background: var(--neo-bg); border-bottom: 2.5px solid var(--line-color); padding: 8px 12px; display: flex; align-items: center; gap: 8px;">
-                <div style="background: var(--color-green); width: 22px; height: 22px; border-radius: 6px; border: 2px solid var(--line-color); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                    <svg viewBox="0 0 24 24" style="width:12px; height:12px; fill:none; stroke:var(--text-main); stroke-width:3; stroke-linecap:round; stroke-linejoin:round;"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>
-                </div>
-                <span style="font-size: 12px; font-weight: 900; color: var(--text-main); opacity: 0.9;">分享了一篇帖子</span>
-            </div>
-
-            <!-- 帖子内容区 -->
-            <div style="padding: 14px; background: var(--color-blue); flex: 1;">
-                <!-- 作者账号 -->
-                <div style="font-size: 15px; font-weight: 900; margin-bottom: 8px; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
-                    <svg viewBox="0 0 24 24" style="width:16px; height:16px; fill:var(--text-main);"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
-                    ${authorHandle}
-                </div>
-                
-                <!-- 帖子正文片段 -->
-                <div style="font-size: 13px; font-weight: bold; line-height: 1.6; color: var(--text-main); opacity: 0.85; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; word-break: break-all;">
-                    ${rawDesc}
-                </div>
-
-                <!-- 动态生成的精美媒体标签 (无媒体时自动隐藏) -->
-                ${mediaTagHtml}
-            </div>
-        </div>
-
-        ${!isUser ? failedIcon : ''}
-    </div>`;
-}
-
-    return `
-    <div style="display:flex; align-items:center; justify-content:${msg.role==='user'?'flex-end':'flex-start'}; margin-bottom: 6px;" oncontextmenu="event.preventDefault(); openWalkXBubbleActionModal('${msg.id}', '${walkXCurrentProfileId}')" ontouchstart="this._touchTimer = setTimeout(() => { openWalkXBubbleActionModal('${msg.id}', '${walkXCurrentProfileId}'); }, 600);" ontouchend="clearTimeout(this._touchTimer);" ontouchcancel="clearTimeout(this._touchTimer);" ontouchmove="clearTimeout(this._touchTimer);">
-        ${msg.role==='user' ? failedIcon : ''}
-        <div class="x-chat-media-card ${roleClass}" onclick="openWalkXChatMediaPreview('${escapeWalkXAttr(mediaInfo.type)}','${escapeWalkXAttr(mediaInfo.title)}','${escapeWalkXAttr(mediaInfo.desc)}')">
-            <div class="x-chat-media-thumb ${mediaInfo.type === 'video' ? 'x-video-fake' : ''}">
-                <div class="x-chat-media-badge">${mediaInfo.type === 'video' ? '视频' : '图片'}</div>
-                ${mediaInfo.type === 'video' ? `<div class="x-chat-media-play"><svg viewBox="0 0 24 24"><polygon points="8,5 19,12 8,19"></polygon></svg></div>` : `<span>${mediaInfo.title || '图片'}</span>`}
-            </div>
-            <div class="x-chat-media-title">${escapeEchoText(mediaInfo.title || (mediaInfo.type === 'video' ? '未命名视频' : '未命名图片'))}</div>
-        </div>
-        ${msg.role==='npc' ? failedIcon : ''}
-    </div>`;
-}
+        // ✅ 把所有特殊卡片的渲染逻辑统一交给 parseCybSpecialMsg 函数处理，代码更整洁，且不会重复渲染
+        return parseCybSpecialMsg(msg.content, msg.role === 'user', 'x-chat-bubble', msg);
+    }
 
     let msgText = msg.content || '';
     let transHtml = '';
     if (msgText.includes('|---|')) {
-    let parts = msgText.split('|---|');
-    msgText = parts[0];
-    transHtml = `<div style="font-size:11px; font-weight:900; opacity:0.7; margin-top:6px; border-top:1px dashed rgba(0,0,0,0.2); padding-top:6px;">${escapeEchoText(parts[1])}</div>`;
-}
-
-// 增加记忆功能：记录哪些气泡的翻译被点开了
-window.openedTrans = window.openedTrans || new Set();
-let isOpened = window.openedTrans.has(String(msg.id));
-let dStyle = isOpened ? 'block' : 'none';
-
-// 注意这里去掉了 x-chat-bubble 内部的换行，修复了空格问题，并加入了长按事件
-return `
-    <div style="display:flex; align-items:center; justify-content:${msg.role==='user'?'flex-end':'flex-start'};" oncontextmenu="event.preventDefault(); openWalkXBubbleActionModal('${msg.id}', '${walkXCurrentProfileId}')" ontouchstart="this._touchTimer = setTimeout(() => { openWalkXBubbleActionModal('${msg.id}', '${walkXCurrentProfileId}'); }, 600);" ontouchend="clearTimeout(this._touchTimer);" ontouchcancel="clearTimeout(this._touchTimer);" ontouchmove="clearTimeout(this._touchTimer);">
-        ${msg.role==='user' ? failedIcon : ''}
-        <div class="x-chat-bubble ${roleClass}" onclick="const t=this.querySelector('.chat-trans-box'); if(t){ if(t.style.display==='none'){ t.style.display='block'; window.openedTrans.add('${msg.id}'); } else { t.style.display='none'; window.openedTrans.delete('${msg.id}'); } }">${escapeEchoText(msgText)}${transHtml ? `<div class="chat-trans-box" style="display:${dStyle};">${transHtml}</div>` : ''}</div>
-        ${msg.role==='npc' ? failedIcon : ''}
-    </div>`;
+        let parts = msgText.split('|---|');
+        msgText = parts[0];
+        transHtml = `<div style="font-size:11px; font-weight:900; opacity:0.7; margin-top:6px; border-top:1px dashed rgba(0,0,0,0.2); padding-top:6px;">${escapeEchoText(parts[1])}</div>`;
+    }
+    
+    window.openedTrans = window.openedTrans || new Set();
+    let isOpened = window.openedTrans.has(String(msg.id));
+    let dStyle = isOpened ? 'block' : 'none';
+    
+    return `
+        <div style="display:flex; align-items:center; justify-content:${msg.role==='user'?'flex-end':'flex-start'};" oncontextmenu="event.preventDefault(); openWalkXBubbleActionModal('${msg.id}', '${walkXCurrentProfileId}')" ontouchstart="this._touchTimer = setTimeout(() => { openWalkXBubbleActionModal('${msg.id}', '${walkXCurrentProfileId}'); }, 600);" ontouchend="clearTimeout(this._touchTimer);" ontouchcancel="clearTimeout(this._touchTimer);" ontouchmove="clearTimeout(this._touchTimer);">
+            ${msg.role==='user' ? failedIcon : ''}
+            <div class="x-chat-bubble ${roleClass}" onclick="const t=this.querySelector('.chat-trans-box'); if(t){ if(t.style.display==='none'){ t.style.display='block'; window.openedTrans.add('${msg.id}'); } else { t.style.display='none'; window.openedTrans.delete('${msg.id}'); } }">${escapeEchoText(msgText)}${transHtml ? `<div class="chat-trans-box" style="display:${dStyle};">${transHtml}</div>` : ''}</div>
+            ${msg.role==='npc' ? failedIcon : ''}
+        </div>`;
 }
 
 function parseWalkXMediaMessage(text) {
