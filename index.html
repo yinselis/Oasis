@@ -3872,19 +3872,26 @@ async function getDiaryAiResponse(diaryId, extraMsg = null, isRegenerate = false
     let d = diaries[targetIndex];
     if(!d.replies) d.replies = [];
 
+    const replyBox = document.getElementById(`diary-replies-${d.id}`);
+
     if(isRegenerate) {
-        // 删除最后一条AI回复
+        // 1. 删除后台数据里的旧回复
         if(d.replies.length > 0 && d.replies[d.replies.length-1].role === 'assistant') {
             d.replies.pop();
         }
-        renderMyDiary(); // 先刷新一下，把旧回复去掉
+        // 2. 丝滑剔除界面上的旧回复，不刷新全局
+        if (replyBox && replyBox.lastElementChild) {
+            replyBox.removeChild(replyBox.lastElementChild);
+        }
     } else if(extraMsg) {
         d.replies.push({role: 'user', content: extraMsg});
-        renderMyDiary(); // 先渲染用户发出的消息
+        // 丝滑追加用户的回复，不刷新全局
+        if (replyBox) {
+            replyBox.insertAdjacentHTML('beforeend', `<div class="user-reply-box"><div style="font-size: 13px; font-weight: bold; line-height: 1.5;">${extraMsg}</div></div>`);
+        }
     }
 
 // ====== 新增：UI 正在思考的提示 ======
-const replyBox = document.getElementById(`diary-replies-${d.id}`);
 const typingId = `diary-typing-${Date.now()}`;
 if(replyBox) {
     const loadingText = isRegenerate ? "TA 正在重新构思回复..." : "TA 正在仔细阅读并思考...";
