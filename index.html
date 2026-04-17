@@ -21096,6 +21096,10 @@ window.openRedPacketPopup = function(amount, memo) {
 
 window.parseCybSpecialMsg = function(content, isUser, bubbleClass, msgObj = null) {
     content = String(content || ''); 
+    
+    // 👇 新增这一行：强力兼容 AI 擅自使用的全角括号
+    content = content.replace(/^[\[【](.*?)[\]】]/, '[$1]');
+    
     const alignSelf = isUser ? 'flex-end' : 'flex-start';
     const roleCls = isUser ? 'is-user' : 'is-npc';
 
