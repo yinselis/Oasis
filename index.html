@@ -3797,8 +3797,8 @@ async function renderMyDiary() {
                         </div>
 
                         <div style="display: flex; gap: 8px; margin-top: 15px; flex-wrap: wrap;">
-                            <button class="diary-mini-btn primary" onclick="askAiToRead('${d.id}')">让它来看</button>
-                            ${(d.replies && d.replies.length > 0) ? `<button class="diary-mini-btn" onclick="replyToAiInDiary('${d.id}')">回复它</button>
+                            <button class="diary-mini-btn primary" onclick="askAiToRead('${d.id}')">让TA来看</button>
+                            ${(d.replies && d.replies.length > 0) ? `<button class="diary-mini-btn" onclick="replyToAiInDiary('${d.id}')">回复TA</button>
                             <button class="diary-mini-btn" onclick="regenerateAiReply('${d.id}')">重新生成</button>` : ''}
                             <button class="diary-mini-btn danger" style="margin-left: auto;" onclick="deleteMyDiary('${d.id}')">删除</button>
                         </div>
@@ -3959,14 +3959,14 @@ async function askAiToRead(id) {
 }
 
 async function replyToAiInDiary(id) {
-    const msg = prompt("你要在日记里回复它什么？");
+    const msg = prompt("你要在日记里回复TA什么？");
     if(msg && msg.trim()) {
         await getDiaryAiResponse(id, msg.trim());
     }
 }
 
 async function regenerateAiReply(id) {
-    if(confirm("要让它重新想一条回复吗？")) {
+    if(confirm("要让TA重新想一条回复吗？")) {
         await getDiaryAiResponse(id, null, true);
     }
 }
@@ -7486,7 +7486,7 @@ async function openOccultNotes(type) {
     let html = `
         <div class="occult-header">
             <button class="btn-notes" onclick="switchOccultTab('${type}')">← 返回起卦</button>
-            <div style="font-size: 15px; font-weight: 900;">${type==='liuyao'?'六爻':'梅花'}笔记</div>
+            <div style="font-size: 15px; font-weight: 900;">${type==='liuyao'?'六爻':(type==='meihua'?'梅花':'塔罗')}笔记</div>
         </div>
     `;
 
@@ -7494,14 +7494,24 @@ async function openOccultNotes(type) {
         html += `<div style="text-align:center; opacity: 0.4; font-weight: 900; margin-top: 40px;">暂无笔记</div>`;
     } else {
         notes.slice().reverse().forEach(n => {
-            html += `
-                <div class="liuyao-note-item" onclick="openOccultNoteDetail(${n.id})">
-                    <div style="font-size: 11px; opacity: 0.6; font-weight: 900;">${n.date}</div>
-                    <div style="font-weight: 900; font-size: 14px; margin: 6px 0;">问：${n.question}</div>
-                    <div style="font-size: 12px; font-weight: bold;">【${n.origName}】变【${n.chanName}】</div>
-                </div>
-            `;
-        });
+    if (n.type === 'tarot') {
+        html += `
+            <div class="liuyao-note-item" style="border-color:var(--color-purple); box-shadow: 3px 3px 0 var(--color-purple);" onclick="openOccultNoteDetail(${n.id})">
+                <div style="font-size: 11px; opacity: 0.6; font-weight: 900;">${n.date}</div>
+                <div style="font-weight: 900; font-size: 14px; margin: 6px 0; color:var(--color-purple);">问：${n.question}</div>
+                <div style="font-size: 12px; font-weight: bold;">牌阵：${n.cards}</div>
+            </div>
+        `;
+    } else {
+        html += `
+            <div class="liuyao-note-item" onclick="openOccultNoteDetail(${n.id})">
+                <div style="font-size: 11px; opacity: 0.6; font-weight: 900;">${n.date}</div>
+                <div style="font-weight: 900; font-size: 14px; margin: 6px 0;">问：${n.question}</div>
+                <div style="font-size: 12px; font-weight: bold;">【${n.origName}】变【${n.chanName}】</div>
+            </div>
+        `;
+    }
+});
     }
     container.innerHTML = html;
 }
@@ -7511,7 +7521,27 @@ async function openOccultNoteDetail(id) {
     const notes = await getDB('occult_notes',[]);
     const record = notes.find(n => n.id === id);
     if(!record) return;
-
+// === 塔罗牌专属详情页拦截 ===
+if (record.type === 'tarot') {
+    container.innerHTML = `
+        <div class="occult-header">
+            <button class="btn-notes" onclick="openOccultNotes('tarot')">← 返回笔记夹</button>
+            <button class="btn-notes" style="background:var(--color-pink);" onclick="deleteOccultNote(${record.id}, 'tarot')">删除本记</button>
+        </div>
+        <div class="diary-box" style="background: var(--color-purple); color: var(--text-main);">
+            <div style="font-size: 12px; opacity: 0.8; font-weight: 900; margin-bottom: 8px;">时间：${record.date}</div>
+            <div style="font-size: 16px; font-weight: 900; margin-bottom: 12px;">问：${record.question}</div>
+            <div style="font-size: 13px; font-weight: bold; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; margin-bottom: 16px;">
+                牌阵：${record.cards}
+            </div>
+            <div style="font-size: 14px; font-weight: bold; line-height: 1.6;">
+                ${record.aiResponse}
+            </div>
+        </div>
+    `;
+    return; // 提前结束，不要往下执行排盘画六爻的代码
+}
+// === 拦截结束 ===
     const aiProfiles = await getDB('ai_profiles',[]);
     let aiOptions = aiProfiles.map(ai => `<option value="${ai.id}">${ai.name}</option>`).join('');
     if(aiOptions === '') aiOptions = `<option value="">请先去指令集创建角色</option>`;
@@ -7770,8 +7800,11 @@ async function askOccultAIForNote(noteId) {
 
 function renderOccultTarot(container) {
     container.innerHTML = `
-        <div class="diary-box" style="background: var(--color-purple);">
-            <div style="font-size: 14px; font-weight: 900; margin-bottom: 8px;">韦特塔罗 · 命运之引</div>
+        <div class="occult-header">
+    <div style="font-size: 15px; font-weight: 900;">韦特塔罗 · 命运之引</div>
+    <button class="btn-notes" onclick="openOccultNotes('tarot')">塔罗笔记</button>
+</div>
+<div class="diary-box" style="background: var(--color-purple);">
             <textarea class="form-textarea" id="tarotQuestion" placeholder="深呼吸，默念你的困惑，写下问题..." style="min-height: 60px;"></textarea>
             
             <!-- 新增：抽牌选项 -->
@@ -7846,18 +7879,25 @@ function drawTarotCards(count) {
             // 三张牌默认按“过去、现在、未来”解读
             dataStr = `过去:【${drawnCards[0].name}】(${drawnCards[0].position}), 现在:【${drawnCards[1].name}】(${drawnCards[1].position}), 未来:【${drawnCards[2].name}】(${drawnCards[2].position})`;
         }
-        resultDisplay.innerHTML = `${dataStr}<br><button class="form-btn" style="margin-top:10px; padding: 8px 16px; font-size: 12px;" onclick="askTarotAI('${question}', '${dataStr}')">请求 AI 解读牌阵</button>`;
+        resultDisplay.innerHTML = `${dataStr}<br><button class="form-btn" style="margin-top:10px; padding: 8px 16px; font-size: 12px;" onclick="askTarotAI('${question}', '${dataStr}')">让TA解读牌阵</button>`;
     }, count * 400 + 100); // 所有牌翻完后再显示解读按钮
 }
 async function askTarotAI(question, dataStr) {
     const apiUrl = await getDB('apiUrl'); const apiKey = await getDB('apiKey'); const model = await getDB('aiModel');
     if(!apiUrl || !apiKey) return alert("请先配置 API。");
-    
-    // 升级了 Prompt，让AI能更好地区分单张和三张牌的情况
-    const systemPrompt = `你是一位专业的塔罗占卜师。用户的问题是：“${question}”。\n抽到的牌如下：\n${dataStr}\n请结合牌意和牌阵(如果是多张牌，默认代表过去、现在、未来)进行详细解读，并给出指引。`;
+
+    // --- 新增：获取当前活动的 AI 角色 ---
+    const activeAiId = await getDB('active_ai_profile_id');
+    const allAiProfiles = await getDB('ai_profiles',[]);
+    const activeAI = allAiProfiles.find(p => p.id === activeAiId);
+    const aiName = activeAI ? activeAI.name : '塔罗占卜师';
+    const aiBio = activeAI ? activeAI.bio : '你精通塔罗牌。';
+
+    // 升级了 Prompt，让AI代入人设解牌
+    const systemPrompt = `你的身份是：${aiName}。你的设定是：${aiBio}。\n请你完全结合自己的人设和语气，帮用户解读一次塔罗牌占卜。\n用户的问题是：“${question}”。\n抽到的牌如下：\n${dataStr}\n请结合牌意和牌阵(如果是多张牌，默认代表过去、现在、未来)进行解读，并给出符合你身份的指引。绝对不要使用任何emoji表情。`;
     
     // 让解读按钮进入等待状态
-    document.getElementById('tarotResult').innerHTML = 'AI 正在解读中，请稍候...';
+    document.getElementById('tarotResult').innerHTML = 'TA 正在解读中，请稍候...';
 
     try {
         const res = await fetch(apiUrl.replace(/\/+$/, '') + (apiUrl.includes('/v1') ? '/chat/completions' : '/v1/chat/completions'), {
@@ -7868,14 +7908,31 @@ async function askTarotAI(question, dataStr) {
         
         // 隐藏等待文字，显示AI的回复
         document.getElementById('tarotResult').style.display = 'none';
-        document.getElementById('tarotAIResponse').innerHTML = `<div style="padding:12px; border:2px dashed var(--line-color); border-radius:12px;">牌灵的指引：<br><br>${resData.choices[0].message.content.replace(/\n/g, '<br>')}</div>`;
+
+let safeReply = resData.choices[0].message.content.replace(/'/g, "\\'").replace(/\n/g, '<br>');
+document.getElementById('tarotAIResponse').innerHTML = `
+    <div style="padding:12px; border:2px dashed var(--line-color); border-radius:12px;">牌灵的指引：<br><br>${safeReply}</div>
+    <button class="form-btn" style="margin-top:16px; width:100%; background:var(--neo-bg); color:var(--text-main);" onclick="saveTarotNote('${question}', '${dataStr}', '${safeReply}')">⭐ 收入塔罗笔记</button>
+`;
     } catch(e) { 
         alert("网络波动，解读失败。");
         // 恢复按钮，以便重试
-        document.getElementById('tarotResult').innerHTML = `${dataStr}<br><button class="form-btn" style="margin-top:10px; padding: 8px 16px; font-size: 12px;" onclick="askTarotAI('${question}', '${dataStr}')">请求 AI 解读牌阵</button>`;
+        document.getElementById('tarotResult').innerHTML = `${dataStr}<br><button class="form-btn" style="margin-top:10px; padding: 8px 16px; font-size: 12px;" onclick="askTarotAI('${question}', '${dataStr}')">让TA解读牌阵</button>`;
     }
 }
-
+window.saveTarotNote = async function(question, cards, reply) {
+    let notes = await getDB('occult_notes', []);
+    notes.push({
+        id: Date.now(),
+        type: 'tarot',
+        date: new Date().toLocaleString(),
+        question: question,
+        cards: cards,
+        aiResponse: reply
+    });
+    await setDB('occult_notes', notes);
+    uiAlert("⭐ 已收入断事笔记！\n点击上方【塔罗笔记】即可查看。");
+};
 // ===================================================
 // 月经周期追踪模块核心逻辑 (智能区间版)
 // ===================================================
@@ -10070,7 +10127,7 @@ ${mealText}
                     temperature: 0.9
                 })
             });
-            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
+            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
             if (json.choices && json.choices[0]) {
                 result = json.choices[0].message.content.trim().replace(/[\u{1F600}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '');
             }
@@ -10139,7 +10196,7 @@ ${mealText}
                     temperature: 0.9
                 })
             });
-            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
+            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
             if (json.choices && json.choices[0]) {
                 result = json.choices[0].message.content.trim().replace(/[\u{1F600}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '');
             }
@@ -10200,7 +10257,7 @@ async function askAiExchangeDiet() {
                     temperature: 0.95
                 })
             });
-            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
+            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
             if (json.choices && json.choices[0]) {
                 result = json.choices[0].message.content.trim().replace(/[\u{1F600}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '');
             }
@@ -11309,7 +11366,7 @@ if (apiUrl && apiKey && model) {
                     temperature: 0.95
                 })
             });
-            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
+            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
 
             if (json.choices && json.choices[0]) {
                 return parseWalkXAiPosts(json.choices[0].message.content, aiProfiles);
@@ -11978,7 +12035,7 @@ async function maybeWalkXGainFansByPost(content) {
             })
         });
 
-        const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
+        const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
         if (json.choices && json.choices[0]) {
             let raw = json.choices[0].message.content.trim().replace(/```json/gi, '').replace(/```/g, '').replace(/[\u{1F600}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '');
             
@@ -12121,7 +12178,7 @@ async function generateWalkXNpcPosts(npcInfo, count) {
                     temperature: 0.95
                 })
             });
-            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
+            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
 
             if (json.choices && json.choices[0]) {
                 return parseWalkXNpcPosts(json.choices[0].message.content, npcInfo);
@@ -13224,7 +13281,7 @@ messages.push({ role: 'user', content: nowTimeStr + userText });
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
                 body: JSON.stringify({ model, messages, temperature: 0.95 })
             });
-            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
+            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
 
             if (json.choices && json.choices[0]) {
                 let raw = json.choices[0].message.content;
@@ -13468,7 +13525,7 @@ async function generateWalkXFakeCommentsForPost(post, count) {
                 })
             });
 
-            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
+            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
             if (json.choices && json.choices[0]) {
                 const raw = json.choices[0].message.content.trim().replace(/[\u{1F600}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '');
                 const lines = raw.split('\n').map(s => s.trim()).filter(Boolean);
@@ -13580,7 +13637,7 @@ async function autoReplyWalkXComment(postId) {
                     temperature: 0.9
                 })
             });
-            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
+            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
             if (json.choices && json.choices[0]) {
                 reply = json.choices[0].message.content.trim().replace(/[\u{1F600}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '');
             }
@@ -13661,7 +13718,7 @@ async function maybeGenerateRepliesToMyPost(postId) {
                 })
             });
             
-            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
+            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
             if (json.choices && json.choices[0]) {
                 let raw = json.choices[0].message.content.trim().replace(/```json/gi, '').replace(/```/g, '').replace(/[\u{1F600}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '');
                 
@@ -13784,7 +13841,7 @@ async function judgeWalkXUnlockByAI(authorId, userText) {
                 })
             });
 
-            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
+            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
             if (json.choices && json.choices[0]) {
                 const raw = json.choices[0].message.content.trim();
                 const unlock = raw.includes('[[UNLOCK:YES]]');
@@ -13972,7 +14029,7 @@ async function tryAddWalkXFriend(authorId) {
                 })
             });
 
-            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
+            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
             if (json.choices && json.choices[0]) {
                 const raw = json.choices[0].message.content.trim();
                 agree = raw.includes('同意：yes');
@@ -16045,7 +16102,7 @@ VIP：[是/否]
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
                 body: JSON.stringify({ model, messages: [{ role: 'system', content: prompt }], temperature: 0.95 })
             });
-            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
+            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
             if (json.choices && json.choices[0]) {
                 return parseWbAiPosts(json.choices[0].message.content);
             }
@@ -16259,7 +16316,7 @@ async function generateWbRandomDMs() {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
                 body: JSON.stringify({ model, messages: [{ role: 'system', content: prompt }], temperature: 0.95 })
             });
-            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
+            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
             if (json.choices && json.choices[0]) {
                 let blocks = json.choices[0].message.content.split('===').map(s => s.trim()).filter(Boolean);
                 blocks.forEach((block, i) => {
@@ -17419,7 +17476,7 @@ VIP：[是/否]
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
                 body: JSON.stringify({ model, messages: [{ role: 'system', content: prompt }], temperature: 0.95 })
             });
-            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
+            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
             if (json.choices && json.choices[0]) {
                 return parseWbAiVideoPosts(json.choices[0].message.content);
             }
@@ -18760,7 +18817,7 @@ ${keyword ? `4. 用户目前在搜索标签“[ ${keyword} ]”，请让这 5 �
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
                 body: JSON.stringify({ model, messages: [{ role: 'system', content: prompt }], temperature: 0.9 })
             });
-            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
+            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
 
             if (json.choices && json.choices[0]) {
                 const text = json.choices[0].message.content.trim().replace(/[\u{1F600}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '');
@@ -19136,7 +19193,7 @@ if (cachedHtml) {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
                 body: JSON.stringify({ model, messages: [{ role: 'system', content: prompt }], temperature: 0.9 })
             });
-            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
+            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
             if (json.choices && json.choices[0]) {
                 const text = json.choices[0].message.content.trim().replace(/[\u{1F600}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '');
                 const lines = text.split('\n').filter(l => l.includes('|'));
@@ -19645,7 +19702,7 @@ async function eavesdropRoom(room) {
                 method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
                 body: JSON.stringify({ model, messages: [{ role: 'system', content: prompt }], temperature: 0.95 })
             });
-            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
+            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
             if (json.choices && json.choices[0]) {
                 soundDesc = json.choices[0].message.content.replace(/[\u{1F600}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '');
             }
@@ -19762,7 +19819,7 @@ window.executeSlipNote = async function(room) {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
                 body: JSON.stringify({ model, messages: [{ role: 'system', content: prompt }], temperature: 0.8 })
             });
-            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
+            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
             if (json.choices && json.choices[0]) {
                 const raw = json.choices[0].message.content.trim();
                 isAgree = raw.includes('同意：yes') || raw.includes('同意:yes') || raw.includes('同意： yes') || raw.toLowerCase().includes('yes');
@@ -20637,7 +20694,7 @@ async function showCybNearbySearch(accountId) {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
                 body: JSON.stringify({ model, messages: [{ role: 'system', content: prompt }], temperature: 0.9 })
             });
-            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
+            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
             if(json.choices && json.choices[0]) {
                 const text = json.choices[0].message.content;
                 const blocks = text.split('===').map(s=>s.trim()).filter(Boolean);
@@ -20793,6 +20850,7 @@ const displayName = contact.remark ? String(contact.remark) : String(contact.nam
     
     let chatsDb = await getDB('cyb_chats', {});
     let history = (chatsDb[accountId] && chatsDb[accountId][npcId]) ? chatsDb[accountId][npcId] : [];
+history = history.slice(-50);
 
     // 获取专属聊天设置
     let allSettings = await getDB('cyb_chat_settings', {});
@@ -21756,7 +21814,7 @@ if (msg.imageBase64 && (idx >= chatList.slice(-limit).length - 3)) {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
                 body: JSON.stringify({ model, messages, temperature: 0.85 }) // 稍微调低了一点温度，防止严重幻觉
             });
-            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
+            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
             
             if (json.choices && json.choices[0]) {
                 let raw = json.choices[0].message.content.trim().replace(/[\u{1F600}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '');
@@ -22992,7 +23050,7 @@ window.receiveDateTempChat = async function(npcId) {
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({ model, messages, temperature: 0.9 })
         });
-        const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
+        const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
         
         if (json.choices && json.choices[0]) {
             let raw = json.choices[0].message.content.trim().replace(/[\u{1F600}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '');
@@ -24375,7 +24433,7 @@ ${memoryPrompt}${chatPrompt}
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
                 body: JSON.stringify({ model, messages: [{ role: 'system', content: prompt }], temperature: 0.9 })
             });
-            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
+            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
             if (json.choices && json.choices[0]) {
                 replyText = json.choices[0].message.content.trim().replace(/[\u{1F600}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '');
             }
@@ -24483,7 +24541,7 @@ window.openCybSignalTrace = async function(accountId, npcId) {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
                 body: JSON.stringify({ model, messages: [{ role: 'system', content: prompt }], temperature: 0.9 })
             });
-            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
+            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
             if (json.choices && json.choices[0]) {
                 let raw = json.choices[0].message.content.trim().replace(/```json/gi, '').replace(/```/g, '');
                 try {
@@ -28286,7 +28344,7 @@ ${isSpicy ? '2. 【极其重要】：因为用户发的动态比较暧昧/擦边
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
                 body: JSON.stringify({ model, messages: [{ role: 'system', content: prompt }], temperature: 0.9 })
             });
-            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误")); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
+            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
             
             if (json.choices && json.choices[0]) {
                 const text = json.choices[0].message.content.trim().replace(/[\u{1F600}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '');
@@ -30122,6 +30180,8 @@ window.deletePeekFav = async function(aiId, id) {
         if (area) showPeekFavorites(aiId, area); // 原地刷新
     }
 };
+
+
 </script>
 
 </body>
