@@ -13202,8 +13202,21 @@ async function generateWalkXChatReplyList(authorId, userText) {
 10. 【私密解锁判断】：若用户请求查看主页锁定内容，同意则输出 [[UNLOCK:YES]]。` + (typeof NS_FW_PROMPT !== 'undefined' ? NS_FW_PROMPT : '');
 
             const messages = [{ role: 'system', content: prompt }];
-            recent.forEach(item => { messages.push({ role: item.role === 'user' ? 'user' : 'assistant', content: item.content }); });
-            messages.push({ role: 'user', content: userText });
+
+// 为每一条历史记录加上精准的时间戳前缀
+recent.forEach(item => { 
+    let md = new Date(item.timestamp || Date.now());
+    let timeStr = `[${md.getMonth()+1}月${md.getDate()}日 ${String(md.getHours()).padStart(2,'0')}:${String(md.getMinutes()).padStart(2,'0')}] `;
+    messages.push({ 
+        role: item.role === 'user' ? 'user' : 'assistant', 
+        content: timeStr + item.content 
+    }); 
+});
+
+// 为当前用户刚刚发出的这句话也加上时间戳
+let nowD = new Date();
+let nowTimeStr = `[${nowD.getMonth()+1}月${nowD.getDate()}日 ${String(nowD.getHours()).padStart(2,'0')}:${String(nowD.getMinutes()).padStart(2,'0')}] `;
+messages.push({ role: 'user', content: nowTimeStr + userText });
 
             const endpoint = apiUrl.replace(/\/+$/, '') + (apiUrl.includes('/v1') ? '/chat/completions' : '/v1/chat/completions');
             const res = await fetch(endpoint, {
@@ -21713,13 +21726,24 @@ ${afterCmds ? '\n\n【附加规则】：\n' + afterCmds : ''}`;
                 }
                 
                 let md = new Date(msg.timestamp);
-                let timeStr = `${md.getMonth()+1}月${md.getDate()}日 ${String(md.getHours()).padStart(2,'0')}:${String(md.getMinutes()).padStart(2,'0')}`;
+let timeStr = `${md.getMonth()+1}月${md.getDate()}日 ${String(md.getHours()).padStart(2,'0')}:${String(md.getMinutes()).padStart(2,'0')}`;
 
-                if (msg.imageBase64 && (idx >= chatList.slice(-limit).length - 3)) {
-                    messages.push({ role: msg.role === 'user' ? 'user' : 'assistant', content: [{ type: "text", text: msgContent }, { type: "image_url", image_url: { url: msg.imageBase64 } }] });
-                } else {
-                    messages.push({ role: msg.role === 'user' ? 'user' : 'assistant', content: msgContent });
-                }
+if (msg.imageBase64 && (idx >= chatList.slice(-limit).length - 3)) {
+    // ✅ 修复：拼上时间戳
+    messages.push({ 
+        role: msg.role === 'user' ? 'user' : 'assistant', 
+        content: [
+            { type: "text", text: `[${timeStr}] ${msgContent}` }, 
+            { type: "image_url", image_url: { url: msg.imageBase64 } }
+        ] 
+    });
+} else {
+    // ✅ 修复：拼上时间戳
+    messages.push({ 
+        role: msg.role === 'user' ? 'user' : 'assistant', 
+        content: `[${timeStr}] ${msgContent}` 
+    });
+}
             });
 
             const endpoint = apiUrl.replace(/\/+$/, '') + (apiUrl.includes('/v1') ? '/chat/completions' : '/v1/chat/completions');
