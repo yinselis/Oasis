@@ -20849,8 +20849,13 @@ let contact = (contactsDb[accountId] || []).find(c => c.id === npcId) || { name:
 const displayName = contact.remark ? String(contact.remark) : String(contact.name || '未知');
     
     let chatsDb = await getDB('cyb_chats', {});
-    let history = (chatsDb[accountId] && chatsDb[accountId][npcId]) ? chatsDb[accountId][npcId] : [];
-history = history.slice(-50);
+if (window.currentCybChatKey !== accountId + '_' + npcId) {
+    window.cybChatDisplayLimit = 50;
+    window.currentCybChatKey = accountId + '_' + npcId;
+}
+let fullHistory = (chatsDb[accountId] && chatsDb[accountId][npcId]) ? chatsDb[accountId][npcId] : [];
+let history = fullHistory.slice(-window.cybChatDisplayLimit);
+let hasMoreMsgs = fullHistory.length > window.cybChatDisplayLimit;
 
     // 获取专属聊天设置
     let allSettings = await getDB('cyb_chat_settings', {});
@@ -20895,7 +20900,11 @@ cybStyleNode.innerHTML = settings.customCss || '';
 const customCssTag = ''; // 留空，不再混入下方 HTML 字符串中
 
 let lastMsgTime = 0;
-let msgsHtml = history.map((msg, index) => {
+let msgsHtml = '';
+if (hasMoreMsgs) {
+    msgsHtml += `<div style="text-align:center; padding-top: 10px; margin-bottom: 16px;"><span style="font-size:12px; font-weight:900; color:var(--text-main); opacity:0.6; cursor:pointer; background:var(--neo-bg); padding:6px 14px; border-radius:12px; border:2px solid var(--line-color); box-shadow:2px 2px 0 var(--line-color);" onclick="loadMoreCybChats('${accountId}', '${npcId}')">↑ 点击加载更早的消息</span></div>`;
+}
+msgsHtml += history.map((msg, index) => {
     if (msg.isHidden) return ''; // <--- 新增这行，让隐藏的系统指令不在界面上渲染出来
 
     let timeHtml = '';
@@ -21081,8 +21090,8 @@ if (isNew) {
             } else {
                 msgArea.scrollTop = oldScrollTop; 
             }
-        } else {
-            msgArea.scrollTop = msgArea.scrollHeight; // 普通模式，滚到底部
+            } else if (!window.isLoadingMoreCybChats) {
+    msgArea.scrollTop = msgArea.scrollHeight; // 普通模式，滚到底部
         }
         msgArea.style.opacity = '1';
     }
@@ -21839,6 +21848,8 @@ if (raw.includes('[THINKING_END]')) {
                     }
                 }
                 raw = raw.replace(/\[发送时间:.*?\]\n?/g, '');
+                raw = raw.replace(/\[发送时间:.*?\]\n?/g, '');
+raw = raw.replace(/\[\d{1,2}月\d{1,2}日.*?\]\s*/g, ''); // 强力清除AI模仿的时间戳
                 raw = raw.replace(/\[\[REDPACKET:(\d+):(.*?)\]\]/g, '[红包] $1\n$2');
                 raw = raw.replace(/\[\[LOCATION:(.*?)\]\]/g, '[定位] $1');
                 raw = raw.replace(/\[\[STICKER:(.*?):(http.*?)\]\]/g, '[表情包] $1\n$2');
@@ -30181,7 +30192,23 @@ window.deletePeekFav = async function(aiId, id) {
     }
 };
 
-
+window.loadMoreCybChats = async function(accountId, npcId) {
+    window.cybChatDisplayLimit += 50;
+    const msgArea = document.getElementById('cybChatMsgsArea');
+    const oldScrollHeight = msgArea ? msgArea.scrollHeight : 0;
+    
+    window.isLoadingMoreCybChats = true;
+    await openCybChatWindow(accountId, npcId);
+    
+    // 恢复滑动位置，让你停留在刚才看的那句话，不会乱跳
+    setTimeout(() => {
+        const newMsgArea = document.getElementById('cybChatMsgsArea');
+        if (newMsgArea) {
+            newMsgArea.scrollTop = newMsgArea.scrollHeight - oldScrollHeight;
+        }
+        window.isLoadingMoreCybChats = false;
+    }, 60);
+};
 </script>
 
 </body>
