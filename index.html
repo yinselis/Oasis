@@ -29138,7 +29138,10 @@ window.openRpgMenuModal = async function() {
             </div>
             <div style="display:flex; flex-direction:column; gap:12px; margin-top: 16px;">
                 <button class="form-btn" style="background:var(--color-green);" onclick="saveRpgSettings()">保存设置</button>
-                <button class="form-btn" style="background:#e74c3c; color:#fff; border-color:#c0392b;" onclick="clearTextRpgCache()">销毁世界重新开局</button>
+<button class="form-btn" style="background:var(--color-pink); color:#111; border-color:var(--line-color);" onclick="openRpgWorldSwitcher()">🔁 无缝切换世界 (后台多开)</button>
+<button class="form-btn" style="background:var(--color-blue); color:#111; border-color:var(--line-color);" onclick="saveCurrentRpgWorld()">💾 封存当前世界 (手动存档)</button>
+<button class="form-btn" style="background:var(--color-yellow); color:#111; border-color:var(--line-color);" onclick="openRpgWorldList()">📂 世界档案库 (手动读档)</button>
+<button class="form-btn" style="background:#e74c3c; color:#fff; border-color:#c0392b;" onclick="clearTextRpgCache()">彻底销毁当前世界</button>
                 <button class="form-btn" style="background:transparent; border:none; box-shadow:none; color:var(--text-main);" onclick="document.getElementById('rpgMenuModal').remove()">取消</button>
             </div>
         </div>
@@ -29158,6 +29161,160 @@ window.saveRpgSettings = async function() {
     uiAlert("设置已保存！");
     const history = await getDB('text_rpg_history', []);
     renderRpgHistory(history, settings);
+};
+
+// ==========================================
+// 文游双引擎：手动存读档 + 无缝多开切换
+// ==========================================
+
+// --- 引擎A：无缝多开平行世界 (类似浏览器标签页) ---
+window.openRpgWorldSwitcher = async function() {
+    let history = await getDB('text_rpg_history', []);
+    let currentWorldId = await getDB('rpg_current_world_id', 'world_default');
+    let currentAiId = await getDB('rpg_current_ai_id', null);
+    let worlds = await getDB('rpg_worlds_dict', {});
+
+    // 自动静默保存当前世界
+    if (history.length > 0) {
+        let firstMsg = history[0].content.substring(0, 15).replace(/<[^>]+>/g, '') + '...';
+        worlds[currentWorldId] = { history, aiId: currentAiId, name: firstMsg, time: new Date().toLocaleTimeString() };
+        await setDB('rpg_worlds_dict', worlds);
+    }
+
+    let listHtml = '';
+    Object.keys(worlds).forEach(wId => {
+        let w = worlds[wId];
+        let isCurrent = (wId === currentWorldId);
+        listHtml += `
+            <div style="background:var(--neo-bg); border: 2.5px solid ${isCurrent ? 'var(--color-pink)' : 'var(--line-color)'}; padding: 12px; border-radius: 12px; margin-bottom: 8px; display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="switchRpgWorld('${wId}')">
+                <div style="flex:1; font-weight:bold; font-size:14px; color:${isCurrent ? 'var(--color-pink)' : 'var(--text-main)'};">${w.name} <div style="font-size:10px; opacity:0.5; margin-top:4px;">${w.history.length} 条对话 | ${w.time}</div></div>
+                ${isCurrent ? '<span style="font-size:12px; font-weight:900; color:var(--color-pink);">当前</span>' : '<button class="diary-mini-btn" style="background:var(--color-blue); pointer-events:none;">切入</button>'}
+            </div>
+        `;
+    });
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'rpgSwitcherModal';
+    overlay.style.display = 'flex';
+    overlay.style.zIndex = '9999999';
+    overlay.innerHTML = `
+        <div class="modal-content" style="max-width:340px; padding: 24px; max-height:85vh; display:flex; flex-direction:column;">
+            <h3 style="text-align:center; margin-bottom: 16px;">平行世界切换</h3>
+            <div style="flex:1; overflow-y:auto; padding-right:4px;">${listHtml || '<div style="text-align:center; opacity:0.5; font-size:12px;">没有任何平行世界</div>'}</div>
+            <div style="display:flex; gap:10px; margin-top:16px;">
+                <button class="form-btn" style="flex:1; background:#5a5f66; color:#fff;" onclick="document.getElementById('rpgSwitcherModal').remove()">取消</button>
+                <button class="form-btn" style="flex:1.5; background:var(--color-yellow);" onclick="createNewRpgWorld()">+ 开个新世界</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+};
+
+window.switchRpgWorld = async function(wId) {
+    let worlds = await getDB('rpg_worlds_dict', {});
+    let target = worlds[wId];
+    if (!target) return;
+    
+    await setDB('rpg_current_world_id', wId);
+    await setDB('text_rpg_history', target.history);
+    await setDB('rpg_current_ai_id', target.aiId);
+    
+    document.getElementById('rpgSwitcherModal').remove();
+    document.getElementById('rpgMenuModal').remove();
+    openApp('文游', '文字冒险引擎'); 
+};
+
+window.createNewRpgWorld = async function() {
+    await setDB('rpg_current_world_id', 'world_' + Date.now());
+    await setDB('text_rpg_history', []);
+    await setDB('rpg_current_ai_id', null);
+    
+    document.getElementById('rpgSwitcherModal').remove();
+    document.getElementById('rpgMenuModal').remove();
+    openApp('文游', '文字冒险引擎'); 
+};
+
+// --- 引擎B：手动存读档 (永久保险箱) ---
+window.saveCurrentRpgWorld = async function() {
+    let history = await getDB('text_rpg_history', []);
+    if (history.length === 0) return uiAlert("当前世界是空的，没什么好封存的哦。");
+    
+    let saveName = await uiPrompt("给这个存档起个名字", "世界线_" + new Date().toLocaleDateString());
+    if (!saveName) return;
+    
+    let saves = await getDB('rpg_worlds_saves', []);
+    let currentAiId = await getDB('rpg_current_ai_id', null);
+    
+    saves.push({
+        id: Date.now(),
+        name: saveName,
+        history: history,
+        aiId: currentAiId,
+        time: new Date().toLocaleString()
+    });
+    
+    await setDB('rpg_worlds_saves', saves);
+    uiAlert("💾 当前世界已成功封存！");
+};
+
+window.openRpgWorldList = async function() {
+    let saves = await getDB('rpg_worlds_saves', []);
+    let listHtml = '';
+    if (saves.length === 0) {
+        listHtml = '<div style="text-align:center; padding: 40px 20px; font-weight:900; opacity:0.3;">还没有手动封存过任何世界。</div>';
+    } else {
+        saves.slice().reverse().forEach(s => {
+            listHtml += `
+                <div style="background:var(--neo-bg); border: 2.5px solid var(--line-color); border-radius: 14px; padding: 14px; margin-bottom: 12px; box-shadow: 3px 3px 0 var(--line-color);">
+                    <div style="font-size:15px; font-weight:900; color:var(--color-pink); margin-bottom:6px;">${s.name}</div>
+                    <div style="font-size:11px; font-weight:bold; opacity:0.6; margin-bottom:12px;">封存时间：${s.time} | 进度：${s.history.length} 幕</div>
+                    <div style="display:flex; gap:10px;">
+                        <button class="diary-mini-btn" style="flex:1; background:var(--color-green); box-shadow: 2px 2px 0 var(--line-color);" onclick="loadRpgWorld(${s.id})">读取存档</button>
+                        <button class="diary-mini-btn danger" style="padding: 4px 12px;" onclick="deleteRpgWorld(${s.id})">销毁</button>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'rpgSavesModal';
+    overlay.style.display = 'flex';
+    overlay.style.zIndex = '9999999';
+    overlay.innerHTML = `
+        <div class="modal-content" style="max-width:340px; padding: 24px; max-height:85vh; display:flex; flex-direction:column;">
+            <h3 style="text-align:center; margin-bottom: 16px;">世界档案库</h3>
+            <div style="flex:1; overflow-y:auto; padding-right:4px;">${listHtml}</div>
+            <button class="form-btn" style="width:100%; margin-top:16px; background:#5a5f66; color:#fff;" onclick="document.getElementById('rpgSavesModal').remove()">关闭</button>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+};
+
+window.loadRpgWorld = async function(id) {
+    if (!confirm("读取存档会覆盖你【当前屏幕上】的进度。确定要读取吗？")) return;
+    
+    let saves = await getDB('rpg_worlds_saves', []);
+    let s = saves.find(x => x.id === id);
+    if (!s) return;
+    
+    await setDB('text_rpg_history', s.history);
+    await setDB('rpg_current_ai_id', s.aiId);
+    
+    document.getElementById('rpgSavesModal').remove();
+    document.getElementById('rpgMenuModal').remove();
+    openApp('文游', '文字冒险引擎'); 
+};
+
+window.deleteRpgWorld = async function(id) {
+    if (!confirm("确定要彻底销毁这个存档吗？不可恢复！")) return;
+    let saves = await getDB('rpg_worlds_saves', []);
+    saves = saves.filter(x => x.id !== id);
+    await setDB('rpg_worlds_saves', saves);
+    document.getElementById('rpgSavesModal').remove();
+    openRpgWorldList(); 
 };
 
 window.clearTextRpgCache = async function() {
