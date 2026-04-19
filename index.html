@@ -16911,7 +16911,8 @@ async function receiveWbChat(authorId) {
  - 若门槛费极高（如大于1000 P币），你要骂ta抢钱、冷嘲热讽。
  - 若门槛费你能接受，可以表现得很兴奋，表示马上去找ta。
 3. 如果拿到的是真账号并且你决定去X平台找ta，在回复的最后单独一行输出隐藏标记：[[GO_TO_X]]
-
+【线下约会判定】：
+如果你们聊到了现实见面、约会、开房等话题，且你决定主动邀请她线下见面，请在回复的最后单起一行输出隐藏标记：[[CYB_DATE_INVITE]]。
 【终端好友请求判定】：
 如果用户刚刚给你发送了 [终端名片] 并邀请你加好友（并且系统提示你已经同意了）：
 请你在接下来的回复中，必须清楚地意识到【你已经同意了好友请求并且加上了好友】！
@@ -16948,6 +16949,13 @@ async function receiveWbChat(authorId) {
             }
             
             // 解析跨平台跳转
+            if (reply.includes('[[CYB_DATE_INVITE]]')) {
+    reply = reply.replace(/\[\[CYB_DATE_INVITE\]\]/g, '').trim();
+    chats[authorId].push({
+        id: Date.now() + '_invite', role: 'npc', timestamp: Date.now() + 1,
+        content: `[系统提示] 对方提出了线下见面的邀约，点击右上角【见面】即可前往。`
+    });
+}
 let goToXMatch = reply.match(/\[\[GO_TO_X\]\]/);
 if (goToXMatch) {
     reply = reply.replace(/\[\[GO_TO_X\]\]/g, '').trim();
@@ -21031,7 +21039,7 @@ if (window.isCybMultiSelectMode) {
             <div onclick="document.getElementById('cybStickerPanel')?.classList.remove('show'); document.getElementById('cybWechatTools').classList.toggle('show')" style="width:40px; height:40px; border-radius:50%; border:2.5px solid var(--line-color); background:var(--bg-color); display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; box-shadow: 2px 2px 0 var(--line-color);">
                 <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:var(--text-main);fill:none;stroke-width:3;stroke-linecap:round;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
             </div>
-            <input id="cybChatInput" placeholder="发消息..." style="flex:1; min-width:0; padding:10px 14px; border-radius:16px; border:2.5px solid var(--line-color); font-size:14px; font-weight:bold; background:var(--bg-color); color:var(--text-main); outline:none;" onkeypress="if(event.key==='Enter') queueCybChatMsg('${accountId}', '${npcId}')" onfocus="document.getElementById('cybStickerPanel')?.classList.remove('show'); document.getElementById('cybWechatTools')?.classList.remove('show'); setTimeout(()=>document.getElementById('cybChatMsgsArea').scrollTop=document.getElementById('cybChatMsgsArea').scrollHeight, 200);">
+            <textarea id="cybChatInput" placeholder="发消息..." style="flex:1; min-width:0; padding:10px 14px; border-radius:16px; border:2.5px solid var(--line-color); font-size:14px; font-weight:bold; background:var(--bg-color); color:var(--text-main); outline:none; height:46px; min-height:46px; max-height:120px; resize:none; font-family:inherit; overflow-y:auto; word-break:break-all;" onfocus="document.getElementById('cybStickerPanel')?.classList.remove('show'); document.getElementById('cybWechatTools')?.classList.remove('show'); setTimeout(()=>document.getElementById('cybChatMsgsArea').scrollTop=document.getElementById('cybChatMsgsArea').scrollHeight, 200);"></textarea>
             <button onclick="queueCybChatMsg('${accountId}', '${npcId}')" style="background:var(--color-blue); width:40px; height:40px; padding:0; flex-shrink:0; display:flex; align-items:center; justify-content:center; border-radius:12px; border:2px solid var(--line-color); box-shadow: 2px 2px 0 var(--line-color);">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px; margin-left:2px;"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
             </button>
@@ -21065,7 +21073,14 @@ overlay.innerHTML = `
             </div>
             <div style="font-size:17px; font-weight:900; color:var(--text-main); cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" onclick="openCybContactProfileModal('${accountId}', '${npcId}')">${displayName}</div>
         </div>
-        <div onclick="openCybChatSettings('${accountId}', '${npcId}')" style="cursor:pointer; padding: 4px 10px; font-weight:900; letter-spacing: 2px; border: 2.5px solid var(--line-color); border-radius: 10px; background: var(--bg-color); box-shadow: 2px 2px 0 var(--line-color); flex-shrink:0;">···</div>
+        <div style="display:flex; gap:8px;">
+    <div onclick="openCybDateRoom('${accountId}', '${npcId}')" style="cursor:pointer; width: 36px; height: 36px; border: 2.5px solid var(--line-color); border-radius: 10px; background: var(--color-pink); box-shadow: 2px 2px 0 var(--line-color); flex-shrink:0; display:flex; align-items:center; justify-content:center;" title="实境">
+        <svg viewBox="0 0 24 24" style="width: 20px; height: 20px; stroke: #111; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+    </div>
+    <div onclick="openCybChatSettings('${accountId}', '${npcId}')" style="cursor:pointer; width: 36px; height: 36px; border: 2.5px solid var(--line-color); border-radius: 10px; background: var(--bg-color); box-shadow: 2px 2px 0 var(--line-color); flex-shrink:0; display:flex; align-items:center; justify-content:center;" title="设置">
+        <svg viewBox="0 0 24 24" style="width: 20px; height: 20px; stroke: var(--text-main); fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+    </div>
+</div>
     </div>
 
     <div id="cybChatMsgsArea" style="flex:1; overflow-y:auto; padding: 16px; display:flex; flex-direction:column; opacity: ${isNew ? '0' : '1'}; transition: opacity 0.15s;">
@@ -21727,9 +21742,11 @@ else if (diffHours > 1) timeGapHint = ``; // 1到8小时属于正常聊天间隔
             let activeCommands = allCommands.filter(c => c.enabled || mountedCmdIds.includes(String(c.id)));
             let beforeCmds = activeCommands.filter(c => c.position === 'before').map(c => c.text).join('\n');
             let afterCmds = activeCommands.filter(c => c.position !== 'before').map(c => c.text).join('\n');
+            let wordCountConstraint = settings.wordCount ? `\n- 字数限制要求：你的整体回复（或单个气泡）尽量控制在 ${settings.wordCount} 左右。` : '';
+let customStyleConstraint = settings.customStylePrompt ? `\n- 风格设定约束：${settings.customStylePrompt}` : '';
 
-                                                // === 活人感增强版 Prompt v2 (修正版) ===
-                        const prompt = `${beforeCmds ? '【前置全局设定】：\n' + beforeCmds + '\n\n' : ''}你正在进行一场沉浸式的、高度拟人化的语C(Roleplay)。
+// === 活人感增强版 Prompt v2 (修正版) ===
+const prompt = `${beforeCmds ? '【前置全局设定】：\n' + beforeCmds + '\n\n' : ''}你正在进行一场沉浸式的、高度拟人化的语C(Roleplay)。
 
 【第一部分：你的核心设定】
 - 你的名字: ${contact.name}
@@ -21763,6 +21780,7 @@ ${enableTrans ? `2.  **翻译格式**：
     【原文】Are you crazy?
     【翻译】你疯了吗？` : `2. **禁止翻译标签**：绝对禁止使用“【原文】”和“【翻译】”格式！无论你用什么语言，直接输出文本即可，不要自带翻译，不要加前缀！`}
 
+【定制设定附加】${wordCountConstraint}${customStyleConstraint}
 请遵守正确格式。
 
 【第五部分：特殊互动机制】（若需触发，请单独占一个气泡）
@@ -21771,7 +21789,7 @@ ${enableTrans ? `2.  **翻译格式**：
 - 发送照片: [图片] 照片标题\\n这里写详细的画面视觉描述，让人有画面感
 - 红包/转账: [[REDPACKET:金额:留言]]
 - 定位: [[LOCATION:地名]]
-- 决定拉黑: [[BLOCK]
+- 决定拉黑: [[BLOCK]]
 
 【第六部分：思维链与输出】
 现在，请在你脑内进行一次“思维链”来自我矫正，确保你完全理解了所有规则。请严格按以下两步输出：
@@ -22106,6 +22124,7 @@ settings.contextCount = settings.contextCount || 15;
 settings.autoSummary = settings.autoSummary || false;
 settings.replyCount = settings.replyCount || 0;
 settings.enableTrans = settings.enableTrans !== false;
+settings.dateSummary = settings.dateSummary || false;
 settings.customCss = settings.customCss || '';
 let memSettings = await getDB('cyb_memory_settings_' + accountId + '_' + npcId, { threshold: 30, customPrompt: '', lastSummaryIndex: 0 });
 let contactsDb = await getDB('cyb_contacts', {});
@@ -22170,13 +22189,10 @@ overlay.innerHTML = `
 
 <div style="flex:1; overflow-y:auto; padding: 0 20px 20px; display:flex; flex-direction:column; gap:20px;">
     
-    <!-- === 修复后独立出来的：聊天专属背景壁纸 === -->
     <div style="background:var(--neo-bg); border:2px solid var(--line-color); padding:16px; border-radius:16px; box-shadow: 4px 4px 0 var(--line-color);">
         <div style="font-size:14px; font-weight:900; margin-bottom:8px;">聊天专属背景壁纸</div>
         <div style="font-size:11px; font-weight:bold; opacity:0.6; margin-bottom:10px;">设置当前聊天窗口的专属背景图片。</div>
-        
         <input type="text" id="set_cybBgUrl" class="form-input" placeholder="输入网络链接 (图床)" value="${settings.bgUrl || ''}" style="font-size:13px; padding:10px; margin-bottom:8px;">
-        
         <div style="display:flex; gap:8px; margin-bottom:8px;">
             <button class="form-btn" style="flex:1; background:var(--color-blue); padding: 8px; font-size:13px;" onclick="document.getElementById('set_cybBgFile').click()">本地图片</button>
             <button class="form-btn" style="flex:1; background:var(--color-pink); padding: 8px; font-size:13px;" onclick="clearCybBg()">清除壁纸</button>
@@ -22185,111 +22201,125 @@ overlay.innerHTML = `
         <div id="cybBgStatus" style="font-size:10px; font-weight:bold; opacity:0.6; text-align:center;">${settings.bgBase64 ? '[ 已载入本地背景 ]' : '未选择本地图片'}</div>
     </div>
 
-    <!-- === 原来的：自定义专属 CSS === -->
     <div style="background:var(--neo-bg); border:2px solid var(--line-color); padding:16px; border-radius:16px; box-shadow: 4px 4px 0 var(--line-color);">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
             <div style="font-size:14px; font-weight:900;">自定义专属 CSS</div>
             <button class="diary-mini-btn danger" style="padding: 4px 8px; font-size: 11px;" onclick="document.getElementById('set_customCss').value=''">一键清理</button>
         </div>
-    <div style="background:var(--bg-color); padding:10px; border:2px dashed rgba(0,0,0,0.1); border-radius:12px; margin-bottom:10px;">
-        <div style="font-size:12px; font-weight:900; margin-bottom:8px;">我的预设库</div>
-        <div id="cybCssPresetsList" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
-            ${presetHtmlStr}
-        </div>
-        <div style="display:flex; gap:8px;">
-            <input type="text" id="cybNewPresetName" class="form-input" style="padding:6px 10px; font-size:12px; flex:1; min-width:0;" placeholder="给这个预设起个名...">
-            <button class="diary-mini-btn primary" onclick="saveCybCssPreset('${accountId}', '${npcId}')">存为预设</button>
-        </div>
-    </div>
-    <div class="form-group" style="margin-bottom:0;">
-        <textarea id="set_customCss" class="form-textarea" style="min-height:80px; font-family:monospace; font-size:12px;" placeholder="/* 在这里统一写双方的样式 */\n.cyb-user-bubble { background: #FFD6E0 !important; }\n.cyb-char-bubble { background: #C1E1DC !important; }">${settings.customCss || ''}</textarea>
-    </div>
-</div>
-<div style="background:var(--neo-bg); border:2px solid var(--line-color); padding:16px; border-radius:16px; box-shadow: 4px 4px 0 var(--line-color);">
-    <div style="font-size:14px; font-weight:900; margin-bottom:8px;">专属身份绑定 (我的方案)</div>
-    <div style="font-size:11px; font-weight:bold; opacity:0.6; margin-bottom:10px;">选择一个你在“指令集”中创建的【我的档案】，对方将读取你的这个私人设定。</div>
-    <select id="set_selectedUserProfile" class="form-select" style="font-size:13px; padding:10px;">
-        ${userProfileOptions}
-    </select>
-</div>
-
-            <div style="background:var(--neo-bg); border:2px solid var(--line-color); padding:16px; border-radius:16px; box-shadow: 4px 4px 0 var(--line-color);">
-                <div style="font-size:15px; font-weight:900; margin-bottom:12px;">模型记忆设置</div>
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px; background:var(--bg-color); padding:10px; border-radius:10px;">
-                    <span style="font-weight:900; font-size:13px;">当前已消耗 Tokens 估算</span>
-                    <span style="color:var(--color-pink); font-weight:900; font-size:16px;">~${estimatedTokens}</span>
-                </div>
-                <div class="form-group" style="margin-bottom:12px;">
-                    <label>读取上下文条数限制 (最近的N条)</label>
-                    <input type="number" id="set_contextCount" class="form-input" value="${settings.contextCount}" placeholder="推荐 10 - 30">
-                </div>
-                <div class="form-group" style="margin-bottom:12px;">
-<label>自定义回复条数 (支持填范围如 1-3，填0代表随机)</label>
-<input type="text" id="set_replyCount" class="form-input" value="${settings.replyCount}" placeholder="例如: 1-3">
-</div>
-<div style="margin-bottom:12px; background:rgba(0,0,0,0.02); border:2px dashed var(--line-color); border-radius:12px; padding:12px;">
-    <div style="font-size:13px; font-weight:900; margin-bottom:4px;">强制挂载指令集</div>
-    <div style="font-size:11px; font-weight:bold; opacity:0.6; margin-bottom:10px;">勾选后，即使该指令在“指令集APP”里是关闭的，也会对当前角色生效。</div>
-    <div style="display:flex; flex-direction:column; gap:8px; max-height:120px; overflow-y:auto;">
-        ${allCommands.length > 0 ? allCommands.map(cmd => `
-            <label style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:900; cursor:pointer;">
-                <input type="checkbox" class="mount-cmd-checkbox" value="${cmd.id}" ${settings.mountedCommands && settings.mountedCommands.includes(String(cmd.id)) ? 'checked' : ''} style="transform:scale(1.2); accent-color:var(--color-pink);">
-                ${cmd.title || '未命名指令'}
-            </label>
-        `).join('') : '<div style="font-size:11px; opacity:0.5;">暂无指令，请去指令集APP添加。</div>'}
-    </div>
-</div>
-<div class="switch-wrap" style="box-shadow:none; border:2px dashed var(--line-color); padding:12px; margin-bottom:12px; border-radius:12px;">
-    <div>
-        <div style="font-size: 14px; font-weight: 900;">外语/方言自动翻译</div>
-        <div style="font-size: 11px; font-weight: bold; opacity: 0.5;">关闭后可彻底解决排版错乱和串台问题</div>
-    </div>
-    <label class="switch" style="transform:scale(0.8);">
-        <input type="checkbox" id="set_enableTrans" ${settings.enableTrans ? 'checked' : ''}>
-        <span class="slider-btn"></span>
-    </label>
-</div>
-                <div class="switch-wrap" style="box-shadow:none; border:2px dashed var(--line-color); padding:12px; margin-bottom:0; border-bottom: ${settings.autoSummary ? 'none' : '2px dashed var(--line-color)'}; border-bottom-left-radius: ${settings.autoSummary ? '0' : '12px'}; border-bottom-right-radius: ${settings.autoSummary ? '0' : '12px'};" id="autoSummaryWrap">
-    <div>
-        <div style="font-size: 14px; font-weight: 900;">自动总结记忆</div>
-        <div style="font-size: 11px; font-weight: bold; opacity: 0.5;">开启后自动压缩提炼生成卡片</div>
-    </div>
-    <label class="switch" style="transform:scale(0.8);">
-        <input type="checkbox" id="set_autoSummary" ${settings.autoSummary ? 'checked' : ''} onchange="const area = document.getElementById('autoSummaryConfigArea'); const wrap = document.getElementById('autoSummaryWrap'); if(this.checked){ area.style.display='block'; wrap.style.borderBottom='none'; wrap.style.borderBottomLeftRadius='0'; wrap.style.borderBottomRightRadius='0'; } else { area.style.display='none'; wrap.style.borderBottom='2px dashed var(--line-color)'; wrap.style.borderBottomLeftRadius='12px'; wrap.style.borderBottomRightRadius='12px'; }">
-        <span class="slider-btn"></span>
-    </label>
-</div>
-<div id="autoSummaryConfigArea" style="display:${settings.autoSummary ? 'block' : 'none'}; border:2px dashed var(--line-color); border-top:none; padding:0 12px 12px 12px; border-bottom-left-radius:12px; border-bottom-right-radius:12px; background: rgba(0,0,0,0.02);">
-    <div class="form-group" style="margin-bottom:10px;">
-        <label style="font-size:12px;">触发阈值 (多少条消息后自动总结)</label>
-        <input type="number" id="set_memThreshold" class="form-input" value="${memSettings.threshold}" style="font-size:13px; padding:10px;" placeholder="推荐：30">
-    </div>
-    <div class="form-group" style="margin-bottom:0;">
-        <label style="font-size:12px;">自定义侧重点 (选填)</label>
-        <textarea id="set_memPrompt" class="form-textarea" style="min-height:50px; font-size:12px; padding:10px;" placeholder="例如：重点记录我对TA的爱称...">${memSettings.customPrompt || ''}</textarea>
-    </div>
-</div>
+        <div style="background:var(--bg-color); padding:10px; border:2px dashed rgba(0,0,0,0.1); border-radius:12px; margin-bottom:10px;">
+            <div style="font-size:12px; font-weight:900; margin-bottom:8px;">我的预设库</div>
+            <div id="cybCssPresetsList" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+                ${presetHtmlStr}
             </div>
+            <div style="display:flex; gap:8px;">
+                <input type="text" id="cybNewPresetName" class="form-input" style="padding:6px 10px; font-size:12px; flex:1; min-width:0;" placeholder="给这个预设起个名...">
+                <button class="diary-mini-btn primary" onclick="saveCybCssPreset('${accountId}', '${npcId}')">存为预设</button>
+            </div>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <textarea id="set_customCss" class="form-textarea" style="min-height:80px; font-family:monospace; font-size:12px;" placeholder="/* 在这里统一写双方的样式 */\n.cyb-user-bubble { background: #FFD6E0 !important; }\n.cyb-char-bubble { background: #C1E1DC !important; }">${settings.customCss || ''}</textarea>
+        </div>
+    </div>
 
-            <div style="background:var(--neo-bg); border:2px solid #e74c3c; padding:16px; border-radius:16px;">
-    <div style="font-size:15px; font-weight:900; margin-bottom:12px; color:#e74c3c;">危险操作</div>
-    
-    ${isGroup ? '' : `
-    <!-- 拉黑按钮 (仅私聊显示) -->
-    <button class="form-btn" style="width:100%; background:${isBlocked ? 'var(--bg-color)' : '#e74c3c'}; color:${isBlocked ? '#e74c3c' : '#fff'}; border-color:#e74c3c; margin-bottom:8px;" onclick="toggleCybBlockInSettings('${accountId}', '${npcId}')">${isBlocked ? '解除拉黑' : '拉黑该联系人'}</button>
-    `}
-    
-    <button class="form-btn" style="width:100%; background:var(--bg-color); border-color:#e74c3c; color:#e74c3c; margin-bottom:8px;" onclick="clearCybChatHistory('${accountId}', '${npcId}')">清空所有聊天记录</button>
-    <button class="form-btn" style="width:100%; background:#e74c3c; color:#fff; border-color:#c0392b;" onclick="deleteCybContact('${accountId}', '${npcId}')">${isGroup ? '解散/退出群聊' : '彻底删除该联系人'}</button>
-</div>
+    <div style="background:var(--neo-bg); border:2px solid var(--line-color); padding:16px; border-radius:16px; box-shadow: 4px 4px 0 var(--line-color);">
+        <div style="font-size:14px; font-weight:900; margin-bottom:8px;">专属身份绑定 (我的方案)</div>
+        <div style="font-size:11px; font-weight:bold; opacity:0.6; margin-bottom:10px;">选择一个你在“指令集”中创建的【我的档案】，对方将读取你的这个私人设定。</div>
+        <select id="set_selectedUserProfile" class="form-select" style="font-size:13px; padding:10px;">
+            ${userProfileOptions}
+        </select>
+    </div>
 
+    <div style="background:var(--neo-bg); border:2px solid var(--line-color); padding:16px; border-radius:16px; box-shadow: 4px 4px 0 var(--line-color);">
+        <div style="font-size:15px; font-weight:900; margin-bottom:12px;">模型记忆与推演设置</div>
+        
+        <div class="form-group" style="margin-bottom:12px;">
+            <label>读取上下文条数限制 (最近的N条)</label>
+            <input type="number" id="set_contextCount" class="form-input" value="${settings.contextCount}" placeholder="推荐 10 - 30">
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+            <label>强制回复字数要求 (如: 100-300)</label>
+            <input type="text" id="set_wordCount" class="form-input" value="${settings.wordCount || ''}" placeholder="例如: 50-150字">
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+            <label>自定义条数限制 (支持范围如 1-3，0为随机)</label>
+            <input type="text" id="set_replyCount" class="form-input" value="${settings.replyCount}" placeholder="例如: 1-3">
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+            <label>附加风格约束 / 自定义指令提示词</label>
+            <textarea id="set_customStylePrompt" class="form-textarea" style="min-height:70px; font-size:12px;" placeholder="例如：多用白描，少说话多做事...">${settings.customStylePrompt || ''}</textarea>
+        </div>
+
+        <div style="margin-bottom:12px; background:rgba(0,0,0,0.02); border:2px dashed var(--line-color); border-radius:12px; padding:12px;">
+            <div style="font-size:13px; font-weight:900; margin-bottom:4px;">强制挂载全局指令集</div>
+            <div style="font-size:11px; font-weight:bold; opacity:0.6; margin-bottom:10px;">即使指令在主APP是关闭的，也会对本角色生效。</div>
+            <div style="display:flex; flex-direction:column; gap:8px; max-height:120px; overflow-y:auto;">
+                ${allCommands.length > 0 ? allCommands.map(cmd => `
+                    <label style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:900; cursor:pointer;">
+                        <input type="checkbox" class="mount-cmd-checkbox" value="${cmd.id}" ${settings.mountedCommands && settings.mountedCommands.includes(String(cmd.id)) ? 'checked' : ''} style="transform:scale(1.2); accent-color:var(--color-pink);">
+                        ${cmd.title || '未命名指令'}
+                    </label>
+                `).join('') : '<div style="font-size:11px; opacity:0.5;">暂无指令。</div>'}
+            </div>
+        </div>
+
+        <!-- 修复的开关区域：平级放置 -->
+        <div class="switch-wrap" style="box-shadow:none; border:2px dashed var(--line-color); padding:12px; margin-bottom:12px; border-radius:12px;">
+            <div>
+                <div style="font-size: 14px; font-weight: 900;">外语/方言自动翻译</div>
+                <div style="font-size: 11px; font-weight: bold; opacity: 0.5;">关闭可彻底解决排版串台问题</div>
+            </div>
+            <label class="switch" style="transform:scale(0.8);">
+                <input type="checkbox" id="set_enableTrans" ${settings.enableTrans ? 'checked' : ''}>
+                <span class="slider-btn"></span>
+            </label>
+        </div>
+
+        <div class="switch-wrap" style="box-shadow:none; border:2px dashed var(--line-color); padding:12px; margin-bottom:12px; border-radius:12px;">
+            <div>
+                <div style="font-size: 14px; font-weight: 900;">约会记忆自动归档</div>
+                <div style="font-size: 11px; font-weight: bold; opacity: 0.5;">实境约会结束时自动写回忆卡</div>
+            </div>
+            <label class="switch" style="transform:scale(0.8);">
+                <input type="checkbox" id="set_dateSummary" ${settings.dateSummary ? 'checked' : ''}>
+                <span class="slider-btn"></span>
+            </label>
+        </div>
+
+        <div class="switch-wrap" style="box-shadow:none; border:2px dashed var(--line-color); padding:12px; margin-bottom:0; border-bottom: ${settings.autoSummary ? 'none' : '2px dashed var(--line-color)'}; border-bottom-left-radius: ${settings.autoSummary ? '0' : '12px'}; border-bottom-right-radius: ${settings.autoSummary ? '0' : '12px'};" id="autoSummaryWrap">
+            <div>
+                <div style="font-size: 14px; font-weight: 900;">自动总结记忆卡</div>
+                <div style="font-size: 11px; font-weight: bold; opacity: 0.5;">到达阈值后自动压缩生成记忆</div>
+            </div>
+            <label class="switch" style="transform:scale(0.8);">
+                <input type="checkbox" id="set_autoSummary" ${settings.autoSummary ? 'checked' : ''} onchange="const area = document.getElementById('autoSummaryConfigArea'); const wrap = document.getElementById('autoSummaryWrap'); if(this.checked){ area.style.display='block'; wrap.style.borderBottom='none'; wrap.style.borderBottomLeftRadius='0'; wrap.style.borderBottomRightRadius='0'; } else { area.style.display='none'; wrap.style.borderBottom='2px dashed var(--line-color)'; wrap.style.borderBottomLeftRadius='12px'; wrap.style.borderBottomRightRadius='12px'; }">
+                <span class="slider-btn"></span>
+            </label>
         </div>
         
-<div style="padding: 10px 16px 20px; text-align: center; flex-shrink:0;">
-    <button class="form-btn" style="background:var(--color-green); padding: 10px 24px; font-size: 14px;" onclick="saveCybChatSettings('${accountId}', '${npcId}')">保存设置</button>
+        <div id="autoSummaryConfigArea" style="display:${settings.autoSummary ? 'block' : 'none'}; border:2px dashed var(--line-color); border-top:none; padding:0 12px 12px 12px; border-bottom-left-radius:12px; border-bottom-right-radius:12px; background: rgba(0,0,0,0.02);">
+            <div class="form-group" style="margin-bottom:10px;">
+                <label style="font-size:12px;">触发阈值 (多少条消息后自动总结)</label>
+                <input type="number" id="set_memThreshold" class="form-input" value="${memSettings.threshold}" style="font-size:13px; padding:10px;" placeholder="推荐：30">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+                <label style="font-size:12px;">自定义侧重点 (选填)</label>
+                <textarea id="set_memPrompt" class="form-textarea" style="min-height:50px; font-size:12px; padding:10px;" placeholder="例如：重点记录我对TA的爱称...">${memSettings.customPrompt || ''}</textarea>
+            </div>
+        </div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:12px; margin-top: 10px;">
+        <button class="form-btn" style="background:var(--color-blue); color:#111; border-color:var(--line-color);" onclick="saveCurrentCybChatArchive('${accountId}', '${npcId}')">💾 封存当前聊天 (手动存档)</button>
+        <button class="form-btn" style="background:var(--color-yellow); color:#111; border-color:var(--line-color);" onclick="openCybChatArchiveList('${accountId}', '${npcId}')">📂 聊天档案库 (手动读档)</button>
+    </div>
+
 </div>
-    `;
-    document.body.appendChild(overlay);
+        
+<div style="padding: 10px 16px 20px; text-align: center; flex-shrink:0;">
+    <button class="form-btn" style="background:var(--color-green); padding: 10px 24px; font-size: 14px;" onclick="saveCybChatSettings('${accountId}', '${npcId}')">保存所有设置</button>
+</div>
+`;
+document.body.appendChild(overlay);
 };
 
 window.handleCybBgUpload = function(e) {
@@ -22355,8 +22385,11 @@ allSettings[chatKey] = {
     contextCount: parseInt(document.getElementById('set_contextCount').value) || 15,
     autoSummary: document.getElementById('set_autoSummary').checked,
     replyCount: document.getElementById('set_replyCount').value.trim() || '0',
+    wordCount: document.getElementById('set_wordCount').value.trim() || '',
+    customStylePrompt: document.getElementById('set_customStylePrompt').value.trim() || '',
     mountedCommands: mountedCmds,
     enableTrans: document.getElementById('set_enableTrans').checked,
+    dateSummary: document.getElementById('set_dateSummary') ? document.getElementById('set_dateSummary').checked : false,
     selectedUserProfile: document.getElementById('set_selectedUserProfile') ? document.getElementById('set_selectedUserProfile').value : ''
 };
     
@@ -22375,8 +22408,13 @@ await setDB('cyb_memory_settings_' + accountId + '_' + npcId, memSettings);
     let oldStyle = document.getElementById('cyb-dynamic-style');
     if (oldStyle) oldStyle.remove();
 
-    // 瞬间重新打开聊天室，彻底重绘背景和所有的气泡颜色
-    openCybChatWindow(accountId, npcId);
+    // 瞬间重新打开聊天室或实境，彻底重绘背景和所有的气泡颜色
+    if (document.getElementById('cybDateRoomModal')) {
+        document.getElementById('cybDateRoomModal').remove();
+        openCybDateRoom(accountId, npcId);
+    } else {
+        openCybChatWindow(accountId, npcId);
+    }
 };
 
 window.saveCybCssPreset = async function(accountId, npcId) {
@@ -30366,6 +30404,550 @@ window.loadMoreCybChats = async function(accountId, npcId) {
         window.isLoadingMoreCybChats = false;
     }, 60);
 };
+
+// ===================================================
+// 终端专属：线下实境（全屏沉浸 + 左右头像版）
+// ===================================================
+window.openCybDateRoom = async function(accountId, npcId) {
+    let contactsDb = await getDB('cyb_contacts', {});
+    let contact = (contactsDb[accountId] || []).find(c => c.id === npcId) || { name: '对方', bio: '' };
+    const displayName = contact.remark ? contact.remark : contact.name;
+    
+    // 获取实境专属的背景和 CSS（独立存储，不再和私聊面板串台）
+    let allSettings = await getDB('cyb_date_settings', {});
+    let chatKey = accountId + '_' + npcId;
+    let settings = allSettings[chatKey] || { wordCount: '50-150', contextCount: 15, customStylePrompt: '' };
+    let cybChatBgStyle = '';
+    if (settings.bgBase64) {
+        cybChatBgStyle = `background-image: url(${settings.bgBase64}); background-size: cover; background-position: center;`;
+    } else if (settings.bgUrl) {
+        cybChatBgStyle = `background-image: url(${settings.bgUrl}); background-size: cover; background-position: center;`;
+    }
+
+    const overlay = document.createElement('div');
+overlay.className = 'modal-overlay cyb-date-room';
+overlay.id = 'cybDateRoomModal';
+// 【修复排版挤扁】：加入了 align-items: stretch; 让它强制撑开屏幕宽度
+overlay.style.cssText = `position:fixed; top:0; left:0; width:100%; height:100%; background:var(--bg-color); z-index:99999; display:flex; flex-direction:column; padding:0; align-items:stretch; animation: slideUp 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); ${cybChatBgStyle}`;
+
+// 注入实境里的专属 CSS
+let customCssTag = settings.customCss ? `<style>${settings.customCss}</style>` : '';
+
+overlay.innerHTML = `
+    ${customCssTag}
+    <div class="x-chat-top minimal" style="padding: calc(16px + env(safe-area-inset-top)) 20px 16px; border-bottom: var(--border-width) solid var(--line-color); background: var(--neo-bg); display:flex; align-items:center; flex-shrink:0; justify-content: space-between;">
+        <div style="display:flex; align-items:center; gap: 12px;">
+            <div class="x-chat-back-only" onclick="document.getElementById('cybDateRoomModal').remove()" style="width:36px; height:36px; background:var(--color-yellow); border: 2px solid var(--line-color); border-radius: 12px; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+                <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:var(--text-main);fill:none;stroke-width:2.5;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+            </div>
+            <div style="font-size:18px; font-weight:900; color:var(--text-main);">与 ${displayName} 独处</div>
+        </div>
+        <div style="display:flex; gap:8px;">
+<!-- 实境专属的独立设置入口 -->
+<div onclick="openCybDateSettings('${accountId}', '${npcId}')" style="cursor:pointer; width:36px; height:36px; border: 2.5px solid var(--line-color); border-radius: 10px; background: var(--bg-color); box-shadow: 2px 2px 0 var(--line-color); flex-shrink:0; display:flex; align-items:center; justify-content:center;">
+                <svg viewBox="0 0 24 24" style="width:20px; height:20px; stroke:var(--text-main); fill:none; stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round;"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+            </div>
+            <div class="diary-mini-btn danger" style="width:36px; height:36px; padding:0; display:flex; align-items:center; justify-content:center; border-radius: 10px;" onclick="endCybDate('${accountId}', '${npcId}')" title="结束实境">
+                <svg viewBox="0 0 24 24" style="width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </div>
+        </div>
+    </div>
+        
+        <div id="cybDateMsgsArea" style="flex:1; overflow-y:auto; padding: 20px 16px; display:flex; flex-direction:column; gap:16px;">
+            <!-- 动态消息列表 -->
+        </div>
+
+        <div class="x-chat-input-row" style="padding: 12px 16px; background:var(--neo-bg); border-top:var(--border-width) solid var(--line-color); gap:10px; display:flex; align-items:center;">
+            <textarea id="cybDateInput" class="form-textarea" placeholder="输入行动或对话..." style="flex:1; min-width:0; border-radius:16px; padding:12px 14px; font-size:14px; background:var(--bg-color); border:2.5px solid var(--line-color); outline:none; height:46px; min-height:46px; max-height:120px; resize:none; font-family:inherit; overflow-y:auto;"></textarea>
+            <button onclick="sendCybDateChat('${accountId}', '${npcId}')" style="background:var(--color-blue); width:44px; height:44px; padding:0; flex-shrink:0; display:flex; align-items:center; justify-content:center; border-radius:14px; border:2.5px solid var(--line-color); box-shadow: 2px 2px 0 var(--line-color); cursor:pointer; color:#111;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px; margin-left:2px;"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            </button>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    
+    window._tempCybDateChats = window._tempCybDateChats || {};
+    if (!window._tempCybDateChats[npcId]) window._tempCybDateChats[npcId] = [];
+    
+    await renderCybDateChats(accountId, npcId);
+};
+
+window.renderCybDateChats = async function(accountId, npcId) {
+    const area = document.getElementById('cybDateMsgsArea');
+    if(!area) return;
+    
+    let contactsDb = await getDB('cyb_contacts', {});
+    let contact = (contactsDb[accountId] || []).find(c => c.id === npcId) || { name: '对方' };
+    const displayName = contact.remark ? contact.remark : contact.name;
+    const avStyle = contact.avatarImg ? `background-image:url(${contact.avatarImg}); color:transparent; background-size:cover;` : '';
+    
+    let accounts = await getDB('cyb_accounts', []);
+    let me = accounts.find(a => a.id === accountId) || { name: '我', avatarB64: '' };
+    const myAvStyle = me.avatarB64 ? `background-image:url(${me.avatarB64}); color:transparent; background-size:cover;` : '';
+
+    let chats = window._tempCybDateChats[npcId] || [];
+    
+    let html = `<div style="text-align:center; font-size:11px; opacity:0.6; font-weight:900; margin-bottom:16px; color:var(--text-main);">[ 你已进入线下实境，请享受此刻 ]</div>`;
+    
+    html += chats.map(msg => {
+        const isUser = msg.role === 'user';
+        const roleClass = isUser ? 'user' : 'npc';
+        const bubbleClass = isUser ? 'cyb-user-bubble' : 'cyb-char-bubble';
+        
+        // 生成和终端一样的头像
+        let npcAv = !isUser ? `
+            <div class="cyb-avatar-container">
+                <div style="width:100%; height:100%; border-radius:12px; border:2px solid var(--line-color); ${avStyle} background-color:var(--color-pink); display:flex; align-items:center; justify-content:center; font-weight:900; font-size:14px; background-position:center; background-size:cover;">${contact.avatarImg?'':displayName.charAt(0)}</div>
+            </div>` : '';
+            
+        let userAv = isUser ? `
+            <div class="cyb-avatar-container">
+                <div style="width:100%; height:100%; border-radius:12px; border:2px solid var(--line-color); ${myAvStyle} background-color:var(--color-blue); display:flex; align-items:center; justify-content:center; font-weight:900; font-size:14px; background-position:center; background-size:cover;">${me.avatarB64?'':me.name.charAt(0)}</div>
+            </div>` : '';
+        
+        // 动作描写虚化处理
+        let fContent = msg.content.replace(/(\*[^*]+\*|\(.*?\)|（.*?）)/g, '<span style="opacity:0.6; font-style:italic;">$1</span>').replace(/\n/g, '<br>');
+        
+        return `
+        <div class="cyb-chat-row ${roleClass}" style="margin-bottom:12px;">
+            ${npcAv}
+            <div class="cyb-bubble ${bubbleClass}" style="font-size:14px; box-shadow: ${isUser?'-3px 3px 0 var(--line-color)':'3px 3px 0 var(--line-color)'}; line-height:1.6;">${fContent}</div>
+            ${userAv}
+        </div>`;
+    }).join('');
+    
+    area.innerHTML = html;
+    area.scrollTop = area.scrollHeight;
+};
+
+window.sendCybDateChat = async function(accountId, npcId) {
+    const input = document.getElementById('cybDateInput');
+    const text = input.value.trim();
+    if(!text) return;
+    input.value = '';
+    
+    window._tempCybDateChats[npcId].push({ role: 'user', content: text });
+    await renderCybDateChats(accountId, npcId);
+    
+    const area = document.getElementById('cybDateMsgsArea');
+    area.insertAdjacentHTML('beforeend', `<div id="dateTyping" style="color:var(--color-pink); font-size:12px; font-weight:bold; font-style:italic; margin-bottom:12px; margin-left: 48px;">对方正在动作...</div>`);
+    area.scrollTop = area.scrollHeight;
+    
+    const apiUrl = await getDB('apiUrl');
+    const apiKey = await getDB('apiKey');
+    const model = await getDB('aiModel');
+    
+    let contactsDb = await getDB('cyb_contacts', {});
+    let contact = (contactsDb[accountId] || []).find(c => c.id === npcId) || { name: '对方', bio: '' };
+    let accounts = await getDB('cyb_accounts', []);
+    let me = accounts.find(a => a.id === accountId) || { name: '我' };
+    
+    // 私聊设定用来读取绑定的马甲名字
+    let allSettings = await getDB('cyb_chat_settings', {});
+    let chatSettings = allSettings[accountId + '_' + npcId] || {};
+    let realName = me.name;
+    if (chatSettings.selectedUserProfile) {
+        let userProfiles = await getDB('user_profiles', []);
+        let boundProfile = userProfiles.find(p => String(p.id) === String(chatSettings.selectedUserProfile));
+        if (boundProfile && boundProfile.name) realName = boundProfile.name;
+    }
+
+    // 实境专属设定用来控制 AI 行为 (条数、字数、风格)
+    let allDateSettings = await getDB('cyb_date_settings', {});
+    let dateSettings = allDateSettings[accountId + '_' + npcId] || { contextCount: 15, wordCount: '50-150', customStylePrompt: '', mainChatCount: 0, includeMemory: false };
+    let limit = parseInt(dateSettings.contextCount) || 15;
+    let wordCountStr = dateSettings.wordCount || '50-150';
+    let styleStr = dateSettings.customStylePrompt ? `\n【附加约束】：${dateSettings.customStylePrompt}` : '';
+    let mainChatCount = parseInt(dateSettings.mainChatCount) || 0;
+    let includeMemory = dateSettings.includeMemory || false;
+
+    let memoryStr = "";
+    if (includeMemory) {
+        let memoriesDb = await getDB('cyb_memories', {});
+        let mems = memoriesDb[accountId + '_' + npcId] || [];
+        if (mems.length > 0) {
+            memoryStr = "\n【核心记忆库】（这是你们长期相处的背景前提）：\n" + mems.map(m => m.text).join('\n');
+        }
+    }
+
+    let mainChatStr = "";
+    if (mainChatCount > 0) {
+        let chatsDb = await getDB('cyb_chats', {});
+        let mainHistory = (chatsDb[accountId] && chatsDb[accountId][npcId]) ? chatsDb[accountId][npcId] : [];
+        let recentMain = mainHistory.filter(m => !m.isHidden).slice(-mainChatCount);
+        if (recentMain.length > 0) {
+            mainChatStr = "\n【线上聊天前情提要】（这是你们在线上聊过的记录，可作为参考）：\n" + recentMain.map(m => `${m.role === 'user' ? realName : contact.name}: ${m.content.split('|---|')[0].replace(/\\n/g, ' ')}`).join('\n');
+        }
+    }
+
+    const prompt = `这是一场沉浸式的线下实境角色扮演。
+你是：${contact.name}，设定：${contact.bio}。
+和你在一起的人是：${realName}。${memoryStr}${mainChatStr}
+你们现在正在现实中面对面独处。
+要求：
+1. 【视角绝对强制】：必须使用第三人称（“他/她”或你的角色名字）来代指你自己，用第二人称（“你”）来称呼用户！绝对禁止在旁白动作描写中使用“我”！例如：“他俯下身，紧紧盯着你的眼睛。” 要像写连贯小说一样，充满沉浸感！
+2. 全篇必须采用【白描手法】直接陈述客观的动作和状态。
+3. 【绝对禁止】使用任何比喻（严禁出现“像...一样”等）！【绝对禁止】使用中二病、莫名其妙的形容词（如“不容置疑”、“眼底晦暗不明”、“危险的气息”等）！【绝对禁止】任何油腻的土味情话和霸总语录！只写客观发生的动作、肉体触碰和真实的生理反应！
+4. 绝对不要使用任何 emoji 表情符号。
+5. 严格字数要求：约 ${wordCountStr} 字左右。${styleStr}
+6. 【语言与对白格式强制规定】：请根据你的人设判断国籍。如果你是中国人，请全程使用纯中文。如果你是外国人，你的【动作、神态、心理、环境描写】必须使用纯中文！但是，你【说出口的对话台词】必须使用你的外语母语，并在台词后紧跟括号包裹的中文翻译。格式必须为："外文台词"（中文翻译）。例如：我抚摸着你的脸颊，低声说道："You are so beautiful."（你真美。）绝对禁止把动作描写也翻译成外文！` + (typeof NS_FW_PROMPT !== 'undefined' ? NS_FW_PROMPT : '');
+
+    let messages = [{ role: 'system', content: prompt }];
+    window._tempCybDateChats[npcId].slice(-limit).forEach(msg => {
+        messages.push({ role: msg.role, content: msg.content });
+    });
+
+    try {
+        const endpoint = apiUrl.replace(/\/+$/, '') + (apiUrl.includes('/v1') ? '/chat/completions' : '/v1/chat/completions');
+        const res = await fetch(endpoint, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({ model, messages, temperature: 0.9 })
+        });
+        const data = await res.json(); if(data && data.error) uiAlert("API报错");
+        if(data.choices && data.choices[0]) {
+            const reply = data.choices[0].message.content.replace(/[\u{1F600}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '').trim();
+            window._tempCybDateChats[npcId].push({ role: 'assistant', content: reply });
+        }
+    } catch(e) {}
+    
+    document.getElementById('dateTyping')?.remove();
+    await renderCybDateChats(accountId, npcId);
+};
+
+window.endCybDate = async function(accountId, npcId) {
+    if(!confirm("确定结束实境，返回屏幕吗？")) return;
+    // 先不移除，等新界面加载完再移除防闪烁
+    
+    let allSettings = await getDB('cyb_chat_settings', {});
+    let chatKey = accountId + '_' + npcId;
+    let settings = allSettings[chatKey] || {};
+    
+    let chatsDb = await getDB('cyb_chats', {});
+    
+    chatsDb[accountId][npcId].push({
+        id: Date.now() + '_dateEnd',
+        role: 'user',
+        content: `【系统隐身提示：我们刚刚完成了一次线下碰面。在接下来的终端聊天里，你可以自然地提一下刚才见面的感受。】`,
+        timestamp: Date.now(),
+        isHidden: true, failed: false
+    });
+    await setDB('cyb_chats', chatsDb);
+
+    if(settings.dateSummary && window._tempCybDateChats[npcId] && window._tempCybDateChats[npcId].length > 2) {
+        const apiUrl = await getDB('apiUrl');
+        const apiKey = await getDB('apiKey');
+        const model = await getDB('aiModel');
+        if(apiUrl && apiKey) {
+            let chatText = window._tempCybDateChats[npcId].map(m => `${m.role === 'user' ? '我' : 'TA'}: ${m.content}`).join('\n');
+            const prompt = `请提取这段实境互动的客观剧情摘要，第一人称叙述，字数150字以内，不带多余前缀：\n${chatText}`;
+            try {
+                const endpoint = apiUrl.replace(/\/+$/, '') + (apiUrl.includes('/v1') ? '/chat/completions' : '/v1/chat/completions');
+                const res = await fetch(endpoint, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                    body: JSON.stringify({ model, messages: [{ role: 'system', content: prompt }], temperature: 0.5 })
+                });
+                const data = await res.json();
+                if(data.choices && data.choices[0]) {
+                    let summary = data.choices[0].message.content.trim();
+                    let memoriesDb = await getDB('cyb_memories', {});
+                    if(!memoriesDb[chatKey]) memoriesDb[chatKey] = [];
+                    let d = new Date();
+                    let dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} 见面记录`;
+                    memoriesDb[chatKey].push({ id: Date.now(), timestamp: Date.now(), dateStr: dateStr, text: summary });
+                    await setDB('cyb_memories', memoriesDb);
+                    uiAlert("实境结束！刚才的相处记忆已自动刻入核心档案库。");
+                }
+            } catch(e) {}
+        }
+    }
+    
+    window._tempCybDateChats[npcId] = [];
+    await openCybChatWindow(accountId, npcId);
+    
+    // 数据和界面都加载完后，再移除实境弹窗，彻底杜绝闪屏
+    const dateModal = document.getElementById('cybDateRoomModal');
+    if(dateModal) dateModal.remove();
+};
+
+// ==========================================
+// 新增系统：终端聊天专属存读档功能引擎
+// ==========================================
+window.saveCurrentCybChatArchive = async function(accountId, npcId) {
+    let chatsDb = await getDB('cyb_chats', {});
+    let history = chatsDb[accountId] && chatsDb[accountId][npcId] ? chatsDb[accountId][npcId] : [];
+    if (history.length === 0) return uiAlert("当前聊天记录是空的，没什么好封存的哦。");
+    
+    let saveName = await uiPrompt("给这个存档起个名字", "时间节点_" + new Date().toLocaleDateString());
+    if (!saveName) return; // 用户取消了输入
+    
+    let saves = await getDB('cyb_chat_archives', []);
+    saves.push({
+        id: Date.now(),
+        accountId: accountId,
+        npcId: npcId,
+        name: saveName,
+        history: history,
+        time: new Date().toLocaleString()
+    });
+    
+    await setDB('cyb_chat_archives', saves);
+    uiAlert("💾 当前聊天进度已成功保存为单独档案！");
+};
+
+window.openCybChatArchiveList = async function(accountId, npcId) {
+    let saves = await getDB('cyb_chat_archives', []);
+    // 只筛出属于这个号和这个人互动的存档
+    let mySaves = saves.filter(s => s.accountId === accountId && s.npcId === npcId);
+    
+    let listHtml = '';
+    if (mySaves.length === 0) {
+        listHtml = '<div style="text-align:center; padding: 40px 20px; font-weight:900; opacity:0.3;">还没有手动封存过任何聊天进度。</div>';
+    } else {
+        mySaves.slice().reverse().forEach(s => {
+            listHtml += `
+                <div style="background:var(--neo-bg); border: 2.5px solid var(--line-color); border-radius: 14px; padding: 14px; margin-bottom: 12px; box-shadow: 3px 3px 0 var(--line-color);">
+                    <div style="font-size:15px; font-weight:900; color:var(--color-pink); margin-bottom:6px;">${s.name}</div>
+                    <div style="font-size:11px; font-weight:bold; opacity:0.6; margin-bottom:12px;">封存时间：${s.time} | 进度：${s.history.length} 条</div>
+                    <div style="display:flex; gap:10px;">
+                        <button class="diary-mini-btn" style="flex:1; background:var(--color-green); box-shadow: 2px 2px 0 var(--line-color);" onclick="loadCybChatArchive(${s.id}, '${accountId}', '${npcId}')">读取存档</button>
+                        <button class="diary-mini-btn danger" style="padding: 4px 12px;" onclick="deleteCybChatArchive(${s.id}, '${accountId}', '${npcId}')">销毁</button>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'cybChatArchiveModal';
+    overlay.style.display = 'flex';
+    overlay.style.zIndex = '9999999';
+    overlay.innerHTML = `
+        <div class="modal-content" style="max-width:340px; padding: 24px; max-height:85vh; display:flex; flex-direction:column;">
+            <h3 style="text-align:center; margin-bottom: 16px;">聊天档案库</h3>
+            <div style="font-size:11px; font-weight:bold; opacity:0.6; margin-bottom:12px; text-align:center;">注意：读取存档会覆盖你此时此刻的对话记录，慎重！</div>
+            <div style="flex:1; overflow-y:auto; padding-right:4px;">${listHtml}</div>
+            <button class="form-btn" style="width:100%; margin-top:16px; background:#5a5f66; color:#fff;" onclick="document.getElementById('cybChatArchiveModal').remove()">关闭</button>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+};
+
+window.loadCybChatArchive = async function(id, accountId, npcId) {
+    if (!(await uiConfirm("⚠️ 读取存档会直接覆盖你们现在的聊天进度！确定要读取吗？"))) return;
+    
+    let saves = await getDB('cyb_chat_archives', []);
+    let s = saves.find(x => x.id === id);
+    if (!s) return;
+    
+    let chatsDb = await getDB('cyb_chats', {});
+    if(!chatsDb[accountId]) chatsDb[accountId] = {};
+    // 直接用存好的历史替换当前的
+    chatsDb[accountId][npcId] = s.history;
+    
+    await setDB('cyb_chats', chatsDb);
+    
+    // 把设置框和读取框通通关掉，并在底层自动无感刷新对话界面
+    document.getElementById('cybChatArchiveModal').remove();
+    if(document.getElementById('cybChatSettingsModal')) document.getElementById('cybChatSettingsModal').remove();
+    if(document.getElementById('cybChatWindowModal')) document.getElementById('cybChatWindowModal').remove();
+    openCybChatWindow(accountId, npcId);
+    uiAlert("✅ 存档读取完毕！");
+};
+
+window.deleteCybChatArchive = async function(id, accountId, npcId) {
+    if (!confirm("确定要彻底销毁这个存档吗？不可恢复！")) return;
+    let saves = await getDB('cyb_chat_archives', []);
+    saves = saves.filter(x => x.id !== id);
+    await setDB('cyb_chat_archives', saves);
+    // 原地重刷列表
+    document.getElementById('cybChatArchiveModal').remove();
+    openCybChatArchiveList(accountId, npcId); 
+};
+
+// ==========================================
+// 独立分离的线下实境专属设置系统
+// ==========================================
+window.openCybDateSettings = async function(accountId, npcId) {
+    let allSettings = await getDB('cyb_date_settings', {});
+    let chatKey = accountId + '_' + npcId;
+    let settings = allSettings[chatKey] || { contextCount: 15, wordCount: '50-150', customStylePrompt: '', bgUrl: '', customCss: '' };
+    window._tempCybDateBgBase64 = settings.bgBase64 || '';
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'cybDateSettingsModal';
+    overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:var(--bg-color); z-index:999999; display:flex; flex-direction:column; padding: 0; align-items:stretch;';
+
+    overlay.innerHTML = `
+        <div style="width:100%; display:flex; align-items:center; gap:12px; padding:calc(16px + env(safe-area-inset-top)) 20px 16px; border-bottom: 2px solid var(--line-color); background:var(--neo-bg); flex-shrink:0;">
+            <div class="x-chat-back-only" onclick="document.getElementById('cybDateSettingsModal').remove()" style="width: 36px; height: 36px; background: var(--color-yellow); border: 2px solid var(--line-color); border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 2px 2px 0 var(--line-color);">
+                <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:var(--text-main);fill:none;stroke-width:3;stroke-linecap:round;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+            </div>
+            <div style="font-size:16px; font-weight:900;">线下实境专属设置 (不影响私聊)</div>
+        </div>
+
+        <div style="flex:1; overflow-y:auto; padding: 20px; display:flex; flex-direction:column; gap:20px;">
+            <div style="background:var(--neo-bg); border:2px solid var(--line-color); padding:16px; border-radius:16px; box-shadow: 4px 4px 0 var(--line-color);">
+                <div style="font-size:14px; font-weight:900; margin-bottom:8px;">实境专属壁纸</div>
+                <input type="text" id="date_set_bgUrl" class="form-input" placeholder="输入网络链接 (图床)" value="${settings.bgUrl || ''}" style="font-size:13px; padding:10px; margin-bottom:8px;">
+                <div style="display:flex; gap:8px; margin-bottom:8px;">
+                    <button class="form-btn" style="flex:1; background:var(--color-blue); padding: 8px; font-size:13px;" onclick="document.getElementById('date_set_bgFile').click()">本地图片</button>
+                    <button class="form-btn" style="flex:1; background:var(--color-pink); padding: 8px; font-size:13px;" onclick="document.getElementById('date_set_bgUrl').value=''; window._tempCybDateBgBase64=''; document.getElementById('dateBgStatus').innerText='已清除';">清除壁纸</button>
+                </div>
+                <input type="file" id="date_set_bgFile" style="display:none;" accept="image/*" onchange="const f=this.files[0]; if(f){ const r=new FileReader(); r.readAsDataURL(f); r.onload=e=>{ window._tempCybDateBgBase64=e.target.result; document.getElementById('dateBgStatus').innerText='[已载入本地图]'; } }">
+                <div id="dateBgStatus" style="font-size:10px; font-weight:bold; opacity:0.6; text-align:center;">${settings.bgBase64 ? '[已载入本地图]' : '未选择'}</div>
+            </div>
+
+            <div style="background:var(--neo-bg); border:2px solid var(--line-color); padding:16px; border-radius:16px; box-shadow: 4px 4px 0 var(--line-color);">
+                <div style="font-size:14px; font-weight:900; margin-bottom:8px;">实境推演约束 (独立设置)</div>
+                <div class="form-group" style="margin-bottom:12px;">
+                    <label>读取上下文条数限制 (最近的N条)</label>
+                    <input type="number" id="date_set_contextCount" class="form-input" value="${settings.contextCount}" placeholder="推荐 10 - 20">
+                </div>
+        <div class="form-group" style="margin-bottom:12px;">
+            <label>字数要求 (如: 50-150)</label>
+            <input type="text" id="date_set_wordCount" class="form-input" value="${settings.wordCount || ''}" placeholder="默认 50-150">
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+            <label>导入终端线上聊天记录 (条数)</label>
+            <input type="number" id="date_set_mainChatCount" class="form-input" value="${settings.mainChatCount || 0}" placeholder="填0则不导入，推荐 5-15">
+        </div>
+        <div class="switch-wrap" style="box-shadow:none; border:2px dashed var(--line-color); padding:12px; margin-bottom:12px; border-radius:12px;">
+            <div>
+                <div style="font-size: 14px; font-weight: 900;">导入核心记忆总结卡片</div>
+                <div style="font-size: 11px; font-weight: bold; opacity: 0.5;">让TA在实境中记得你们的关系与约定</div>
+            </div>
+            <label class="switch" style="transform:scale(0.8);">
+                <input type="checkbox" id="date_set_includeMemory" ${settings.includeMemory ? 'checked' : ''}>
+                <span class="slider-btn"></span>
+            </label>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label>附加实境风格指令 / 约束提示词</label>
+            <textarea id="date_set_customPrompt" class="form-textarea" style="min-height:70px; font-size:12px;" placeholder="例如：少说话多做事，加强动作白描...">${settings.customStylePrompt || ''}</textarea>
+        </div>
+    </div>
+
+    <div style="background:var(--neo-bg); border:2px solid var(--line-color); padding:16px; border-radius:16px; box-shadow: 4px 4px 0 var(--line-color);">
+        <div style="font-size:14px; font-weight:900; margin-bottom:8px;">实境专属 CSS</div>
+        <textarea id="date_set_customCss" class="form-textarea" style="min-height:80px; font-family:monospace; font-size:12px;" placeholder="例如：修改该场景下的气泡颜色等...">${settings.customCss || ''}</textarea>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:12px; margin-top: 10px;">
+        <button class="form-btn" style="background:var(--color-blue); color:#111; border-color:var(--line-color);" onclick="saveCurrentCybDateArchive('${accountId}', '${npcId}')">封存当前实境 (手动存档)</button>
+        <button class="form-btn" style="background:var(--color-yellow); color:#111; border-color:var(--line-color);" onclick="openCybDateArchiveList('${accountId}', '${npcId}')">实境档案库 (手动读档)</button>
+    </div>
+</div>
+        
+<div style="padding: 10px 20px 20px; flex-shrink:0;">
+    <button class="form-btn" style="width:100%; background:var(--color-green); font-size: 15px;" onclick="saveCybDateSettings('${accountId}', '${npcId}')">保存实境专属设置</button>
+</div>
+    `;
+    document.body.appendChild(overlay);
+};
+
+window.saveCybDateSettings = async function(accountId, npcId) {
+    let allSettings = await getDB('cyb_date_settings', {});
+    let chatKey = accountId + '_' + npcId;
+    allSettings[chatKey] = {
+        bgUrl: document.getElementById('date_set_bgUrl').value.trim(),
+        bgBase64: window._tempCybDateBgBase64,
+        contextCount: parseInt(document.getElementById('date_set_contextCount').value) || 15,
+        mainChatCount: parseInt(document.getElementById('date_set_mainChatCount').value) || 0,
+        includeMemory: document.getElementById('date_set_includeMemory').checked,
+        wordCount: document.getElementById('date_set_wordCount').value.trim() || '50-150',
+        customStylePrompt: document.getElementById('date_set_customPrompt').value.trim() || '',
+        customCss: document.getElementById('date_set_customCss').value.trim()
+    };
+    await setDB('cyb_date_settings', allSettings);
+    document.getElementById('cybDateSettingsModal').remove();
+    
+    const oldModal = document.getElementById('cybDateRoomModal');
+    if (oldModal) oldModal.id = 'cybDateRoomModal_old';
+    await openCybDateRoom(accountId, npcId);
+    if (oldModal) oldModal.remove();
+};
+
+window.saveCurrentCybDateArchive = async function(accountId, npcId) {
+    let history = window._tempCybDateChats[npcId] || [];
+    if (history.length === 0) return uiAlert("当前实境没有记录，没什么好封存的哦。");
+    
+    let saveName = await uiPrompt("给这个实境存档起个名字", "实境节点_" + new Date().toLocaleDateString());
+    if (!saveName) return;
+    
+    let archivesDb = await getDB('rp_archives', {});
+    if (!archivesDb[npcId]) archivesDb[npcId] = [];
+    archivesDb[npcId].push({
+        id: Date.now(),
+        timestamp: Date.now(),
+        venueName: window.currentVenue ? window.currentVenue.name : saveName,
+        customName: saveName,
+        messages: [...history]
+    });
+    await setDB('rp_archives', archivesDb);
+    uiAlert("💾 当前实境进度已成功保存为单独档案！\n\n(可在档案库或终端左侧的【演绎存档】中查看)");
+};
+
+window.openCybDateArchiveList = async function(accountId, npcId) {
+    let archivesDb = await getDB('rp_archives', {});
+    let list = archivesDb[npcId] || [];
+    
+    let listHtml = '';
+    if (list.length === 0) {
+        listHtml = '<div style="text-align:center; padding: 40px 20px; font-weight:900; opacity:0.3;">还没有手动封存过任何实境进度。</div>';
+    } else {
+        list.slice().reverse().forEach(arc => {
+            let d = new Date(arc.timestamp);
+            let timeStr = `${d.getMonth()+1}-${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+            let titleName = arc.customName ? arc.customName : (arc.venueName || '回忆录');
+            listHtml += `
+                <div style="background:var(--neo-bg); border: 2.5px solid var(--line-color); border-radius: 14px; padding: 14px; margin-bottom: 12px; box-shadow: 3px 3px 0 var(--line-color);">
+                    <div style="font-size:15px; font-weight:900; color:var(--color-pink); margin-bottom:6px;">${titleName}</div>
+                    <div style="font-size:11px; font-weight:bold; opacity:0.6; margin-bottom:12px;">封存时间：${timeStr} | 进度：${arc.messages.length} 幕</div>
+                    <div style="display:flex; gap:10px;">
+                        <button class="diary-mini-btn" style="flex:1; background:var(--color-green); box-shadow: 2px 2px 0 var(--line-color);" onclick="loadCybDateArchive(${arc.id}, '${accountId}', '${npcId}')">读取存档</button>
+                        <button class="diary-mini-btn danger" style="padding: 4px 12px;" onclick="deleteRpArchive('${npcId}', ${arc.id}); setTimeout(()=>openCybDateArchiveList('${accountId}', '${npcId}'), 200);">销毁</button>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'cybDateArchiveModal';
+    overlay.style.display = 'flex';
+    overlay.style.zIndex = '9999999';
+    overlay.innerHTML = `
+        <div class="modal-content" style="max-width:340px; padding: 24px; max-height:85vh; display:flex; flex-direction:column;">
+            <h3 style="text-align:center; margin-bottom: 16px;">实境档案库</h3>
+            <div style="font-size:11px; font-weight:bold; opacity:0.6; margin-bottom:12px; text-align:center;">注意：读取存档会覆盖你此刻的实境进度，慎重！</div>
+            <div style="flex:1; overflow-y:auto; padding-right:4px;">${listHtml}</div>
+            <button class="form-btn" style="width:100%; margin-top:16px; background:#5a5f66; color:#fff;" onclick="document.getElementById('cybDateArchiveModal').remove()">关闭</button>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+};
+
+window.loadCybDateArchive = async function(id, accountId, npcId) {
+    if (!(await uiConfirm("⚠️ 读取存档会直接覆盖你们现在的实境进度！确定要读取吗？"))) return;
+    
+    let archivesDb = await getDB('rp_archives', {});
+    let list = archivesDb[npcId] || [];
+    let archive = list.find(a => a.id === id);
+    if (!archive) return;
+    
+    window._tempCybDateChats[npcId] = [...archive.messages];
+    
+    if(document.getElementById('cybDateArchiveModal')) document.getElementById('cybDateArchiveModal').remove();
+    if(document.getElementById('cybDateSettingsModal')) document.getElementById('cybDateSettingsModal').remove();
+    if(document.getElementById('cybDateRoomModal')) document.getElementById('cybDateRoomModal').remove();
+    
+    openCybDateRoom(accountId, npcId);
+    uiAlert("✅ 存档读取完毕！");
+};
+
 </script>
 
 </body>
