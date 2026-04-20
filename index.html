@@ -6686,6 +6686,18 @@ async function renderSmsHistory(aiProfileId) {
 function appendSmsBubble(role, text, isAnon = false, msgId = null) {
     const area = document.getElementById('smsChatArea');
     if (!area) return;
+
+    // 【新增】拦截系统提示，变成居中的灰色小字胶囊
+    if (text && (text.startsWith('【系统提示】') || text.startsWith('[系统提示]'))) {
+        let sysText = text.replace(/【系统提示】[:：]?\s*|\[系统提示\][:：]?\s*/, '').trim();
+        const sysNotice = document.createElement('div');
+        sysNotice.className = 'sms-notice';
+        sysNotice.innerText = sysText;
+        area.appendChild(sysNotice);
+        if(!window._smsMultiSelectMode) area.scrollTop = area.scrollHeight;
+        return; // 提前结束，不再渲染普通的聊天气泡
+    }
+
     const wrap = document.createElement('div');
     wrap.className = `sms-bubble-wrap ${role}`;
     
@@ -6900,8 +6912,8 @@ async function fetchSmsReply() {
 }
     const allProfiles = await getDB('ai_profiles', []);
     const aiProfile = allProfiles.find(p => p.id === aiProfileId);
-    const isBlocked = aiProfile.isBlocked || false;
-    const isAnonymous = window._isSmsAnonymous;
+let isBlocked = aiProfile.isBlocked || false;
+const isAnonymous = window._isSmsAnonymous;
 
     // --- 新增：抓取用户档案资料 ---
     const userProfiles = await getDB('user_profiles', []);
@@ -6912,12 +6924,36 @@ const currentCybId = await getDB('cyb_current_account_id', null);
 const cybAccounts = await getDB('cyb_accounts', []);
 const activeCybAccount = cybAccounts.find(a => a.id === currentCybId) || (cybAccounts.length > 0 ? cybAccounts[0] : null);
 
-    // --- 提取终端(对话APP)的近期聊天记录并计算时间差 ---
-    const cybChatsDb = await getDB('cyb_chats', {});
-    let recentCybChats = [];
-    if (activeCybAccount && cybChatsDb[activeCybAccount.id] && cybChatsDb[activeCybAccount.id][aiProfileId]) {
-        recentCybChats = cybChatsDb[activeCybAccount.id][aiProfileId].slice(-15);
+// --- 精准提取当前账号，并判断有无绑定私人档案 ---
+const cybChatsDb = await getDB('cyb_chats', {});
+let recentCybChats = [];
+let userStr = "对方是你实名认识的人发来的短信。";
+let userRealName = "你";
+
+if (activeCybAccount) {
+    let cybNpcId = 'cyb_npc_' + aiProfileId;
+    let npcBlocks = await getDB('cyb_npc_blocks', []);
+    if (npcBlocks.includes(activeCybAccount.id + '_' + cybNpcId)) {
+        isBlocked = true;
     }
+    if (cybChatsDb[activeCybAccount.id] && cybChatsDb[activeCybAccount.id][cybNpcId]) {
+        recentCybChats = cybChatsDb[activeCybAccount.id][cybNpcId].slice(-30);
+    }
+    
+    let allSettings = await getDB('cyb_chat_settings', {});
+    let chatSettings = allSettings[activeCybAccount.id + '_' + cybNpcId] || {};
+    
+    if (chatSettings.selectedUserProfile) {
+        let boundUser = userProfiles.find(p => String(p.id) === String(chatSettings.selectedUserProfile));
+        if (boundUser && (boundUser.name || boundUser.bio)) {
+            userStr = `给你发短信的人真名叫做“${boundUser.name || '未知'}”，背景设定如下：“${boundUser.bio || '无'}”。你在回复时必须注意她的这个真实身份！`;
+            userRealName = boundUser.name || '我';
+        }
+    } else if (activeCybAccount.name || activeCybAccount.bio) {
+        userStr = `给你发短信的人网名叫做“${activeCybAccount.name || '未知'}”，个性签名是：“${activeCybAccount.bio || '无'}”。你在回复时必须注意她的这个网络身份！`;
+        userRealName = activeCybAccount.name || '我';
+    }
+}
     
     // 获取当前时间
     let nowD = new Date();
@@ -6934,11 +6970,11 @@ const activeCybAccount = cybAccounts.find(a => a.id === currentCybId) || (cybAcc
         let timeDesc = diffHours > 24 ? `${Math.floor(diffHours/24)} 天前` : 
                        (diffHours >= 1 ? `${diffHours.toFixed(1)} 小时前` : `${Math.floor(diffHours * 60)} 分钟前`);
 
-        let cleanCybChats = recentCybChats.map(m => {
-            let txt = m.content || '';
-            if (txt.includes('|---|')) txt = txt.split('|---|')[0];
-            return `${m.role === 'user' ? '我' : '你'}: ${txt.replace(/\\n/g, ' ')}`;
-        }).join('\\n');
+let cleanCybChats = recentCybChats.map(m => {
+    let txt = m.content || '';
+    if (txt.includes('|---|')) txt = txt.split('|---|')[0];
+    return `${m.role === 'user' ? userRealName : '你'}: ${txt.replace(/\\n/g, ' ')}`;
+}).join('\\n');
         
         cybMemoryText += `\n【系统场景强调与跨频道记忆】：
 1. 注意场景：你现在收到的是对方发来的【传统手机短信】！
@@ -6965,17 +7001,10 @@ const context = history.slice(-20).map(m => {
     
     if (isAnonymous) {
         systemPrompt += `【极其重要】：对方目前正在使用【未知号码】给你发短信！你完全不知道对方的身份。请务必表现出警惕、疑惑，或者根据对方说的话做出合理的盲猜和试探。\n`;
-    } else {
-        // --- 修改：实名状态下注入用户资料，若无资料则读取终端账号 ---
-        let userStr = "对方是你实名认识的人发来的短信。";
-        if (defaultUser && (defaultUser.name || defaultUser.bio)) {
-    userStr = `给你发短信的人真名叫做“${defaultUser.name || '未知'}”，背景设定如下：“${defaultUser.bio || '无'}”。你在回复时必须注意她的这个身份与人设！`;
-} else if (activeCybAccount && (activeCybAccount.name || activeCybAccount.bio)) {
-    userStr = `给你发短信的人网名叫做“${activeCybAccount.name || '未知'}”，个性签名是：“${activeCybAccount.bio || '无'}”。你在回复时必须注意她的这个身份与设定！`;
+} else {
+    systemPrompt += `【注意】：${userStr}\n`;
+    systemPrompt += cybMemoryText;
 }
-        systemPrompt += `【注意】：${userStr}\n`;
-        systemPrompt += cybMemoryText;
-    }
 
     if (isBlocked) {
         systemPrompt += `【剧情核心冲突】：你在主聊天软件上【已经拉黑了】这个人！对方只能靠这种老土的短信来求你或者轰炸你。\n`;
@@ -7017,13 +7046,25 @@ const context = history.slice(-20).map(m => {
             let rawContent = data.choices[0].message.content || '';
             
             // 判定拉黑
-            if (isBlocked && rawContent.includes('[UNBLOCK]')) {
-                rawContent = rawContent.replace(/\[UNBLOCK\]/g, '').trim();
-                aiProfile.isBlocked = false;
-                await setDB('ai_profiles', allProfiles); 
-                updateSmsHeaderStatus(aiProfile);
-                setTimeout(() => appendSmsBubble('npc', '【系统提示】：对方气消了，已将你从主通讯终端的黑名单中移出。'), 1200);
-            }
+            // 解除拉黑大一统
+if (rawContent.includes('[UNBLOCK]')) {
+    rawContent = rawContent.replace(/\[UNBLOCK\]/g, '').trim();
+    aiProfile.isBlocked = false;
+    await setDB('ai_profiles', allProfiles); 
+    
+    // 强制消除终端 APP 的拉黑数据
+if (activeCybAccount) {
+    let npcBlocks = await getDB('cyb_npc_blocks', []);
+    let blockKey = activeCybAccount.id + '_cyb_npc_' + aiProfileId;
+        if (npcBlocks.includes(blockKey)) {
+            npcBlocks = npcBlocks.filter(k => k !== blockKey);
+            await setDB('cyb_npc_blocks', npcBlocks);
+        }
+    }
+    
+    updateSmsHeaderStatus(aiProfile);
+    setTimeout(() => appendSmsBubble('npc', '【系统提示】：对方气消了，已将你从主通讯终端的黑名单中移出。'), 1200);
+}
 
             // 处理连发防腰斩切割
             const replies = rawContent
@@ -12603,7 +12644,7 @@ function renderWalkXChatMessage(msg) {
 
     const roleClass = msg.role === 'user' ? 'me' : 'npc';
     const mediaInfo = parseWalkXMediaMessage(msg.content || '');
-    const failedIcon = msg.failed ? `<div style="color:#e74c3c; font-weight:900; font-size:16px; margin: 0 6px; display:flex; align-items:center;">!</div>` : '';
+    const failedIcon = msg.failed ? `<div style="margin: 0 6px; display:flex; align-items:center;"><svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:none;stroke:#e74c3c;stroke-width:2.5;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg></div>` : '';
 
     if (msg.content.startsWith('[系统提示]')) {
         let sysText = msg.content.replace('[系统提示]', '').trim();
@@ -20986,7 +21027,7 @@ if (contact.isGroup && !isUser) {
     senderNameTip = `<div style="font-size:11px; font-weight:900; color:var(--color-pink); margin-bottom:4px; margin-left: 54px;">${memName}</div>`;
 }
 
-let failedIcon = msg.failed ? `<div style="color:#e74c3c; font-weight:900; font-size:16px; margin: 0 6px; display:flex; align-items:center;">!</div>` : '';
+let failedIcon = msg.failed ? `<div style="margin: 0 6px; display:flex; align-items:center;"><svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:none;stroke:#e74c3c;stroke-width:2.5;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg></div>` : '';
 let rowHtml = `
 ${timeHtml}
 ${senderNameTip}
@@ -21597,7 +21638,7 @@ if (isNpcBlockedUser) {
     let myAvStyle = me.avatarB64 ? `background-image:url(${me.avatarB64}); color:transparent; background-size:cover;` : '';
 
     const msgArea = document.getElementById('cybChatMsgsArea');
-    let failedIcon = isNpcBlockedUser ? `<div style="color:#e74c3c; font-weight:900; font-size:16px; margin: 0 6px; display:flex; align-items:center;">!</div>` : '';
+    let failedIcon = isNpcBlockedUser ? `<div style="margin: 0 6px; display:flex; align-items:center;"><svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:none;stroke:#e74c3c;stroke-width:2.5;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg></div>` : '';
 msgArea.insertAdjacentHTML('beforeend', `
     ${timeHtml}
     <div class="cyb-chat-row user" style="margin-bottom: 12px;">
@@ -21608,6 +21649,15 @@ msgArea.insertAdjacentHTML('beforeend', `
             </div>
         </div>
     `);
+    // ↓ 新增这段代码：瞬间渲染被拒收的系统提示
+if (isNpcBlockedUser) {
+    msgArea.insertAdjacentHTML('beforeend', `
+    <div style="text-align:center; padding: 10px 0; margin-bottom: 12px;">
+        <span style="font-size:11px; font-weight:900; opacity:0.6; background:var(--neo-bg); border: 2px solid var(--line-color); padding:6px 14px; border-radius:12px; box-shadow: 2px 2px 0 var(--line-color); color:var(--text-main); display:inline-block; max-width:85%; line-height:1.5;">消息已发出，但被对方拒收了。</span>
+    </div>
+    `);
+}
+// ↑ 新增结束
     msgArea.scrollTop = msgArea.scrollHeight;
 };
 
@@ -21854,17 +21904,23 @@ if (raw.includes('[THINKING_END]')) {
 // ▲▲▲ 新增的代码到这里结束 ▲▲▲
 
                 if (raw.includes('[[BLOCK]]')) {
-                    raw = raw.replace(/\[\[BLOCK\]\]/g, '');
-                    let npcBlocks = await getDB('cyb_npc_blocks', []);
-                    let blockKey = accountId + '_' + npcId;
-                    if(!npcBlocks.includes(blockKey)) {
-                        npcBlocks.push(blockKey);
-                        await setDB('cyb_npc_blocks', npcBlocks);
-                        let chats = await getDB('cyb_chats', {});
-                        chats[accountId][npcId].push({ id: Date.now() + '_sys', role: 'npc', content: `[系统提示] 对方已将你拉黑，消息已被拒收。`, timestamp: Date.now() });
-                        await setDB('cyb_chats', chats);
-                    }
-                }
+    raw = raw.replace(/\[\[BLOCK\]\]/g, '');
+    let npcBlocks = await getDB('cyb_npc_blocks', []);
+    let blockKey = accountId + '_' + npcId;
+    if(!npcBlocks.includes(blockKey)) {
+        npcBlocks.push(blockKey);
+        await setDB('cyb_npc_blocks', npcBlocks);
+        let chats = await getDB('cyb_chats', {});
+        chats[accountId][npcId].push({ id: Date.now() + '_sys', role: 'npc', content: `[系统提示] 对方已将你拉黑，消息已被拒收。`, timestamp: Date.now() });
+        await setDB('cyb_chats', chats);
+        
+        const msgArea = document.getElementById('cybChatMsgsArea');
+        if (msgArea) {
+            msgArea.insertAdjacentHTML('beforeend', `<div style="text-align:center; padding: 10px 0; margin-bottom: 12px;"><span style="font-size:11px; font-weight:900; opacity:0.6; background:var(--neo-bg); border: 2px solid var(--line-color); padding:6px 14px; border-radius:12px; box-shadow: 2px 2px 0 var(--line-color); color:var(--text-main); display:inline-block; max-width:85%; line-height:1.5;">对方已将你拉黑，消息已被拒收。</span></div>`);
+            msgArea.scrollTop = msgArea.scrollHeight;
+        }
+    }
+}
                 raw = raw.replace(/\[发送时间:.*?\]\n?/g, '');
                 raw = raw.replace(/\[发送时间:.*?\]\n?/g, '');
 raw = raw.replace(/\[\d{1,2}月\d{1,2}日.*?\]\s*/g, ''); // 强力清除AI模仿的时间戳
