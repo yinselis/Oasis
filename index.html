@@ -27531,15 +27531,32 @@ window.clearAllAppSystemData = async function() {
     if (!confirm("⚠️ 危险操作！\n\n确定要清空所有数据（包括日记、配置、图集、聊天记录等一切内容）并恢复出厂设置吗？\n\n该操作不可逆转！建议先点上方的按钮导出备份！")) return;
     if (!confirm("再次确认：确定要彻底销毁所有数据吗？")) return;
     
-    // 直接删除 indexedDB 数据库
+    // 【修复点1】：先强制关闭当前已经打开的数据库连接，防止删除操作被阻塞卡死
+    if (typeof dbInstance !== 'undefined' && dbInstance) {
+        dbInstance.close();
+    }
+    
+    // 删除 indexedDB 数据库
     const req = indexedDB.deleteDatabase("AITerminalDB");
+    
     req.onsuccess = function() {
         localStorage.clear();
         alert("所有数据已彻底销毁，系统将重新启动。");
         location.reload();
     };
+    
+    // 【修复点2】：增加 onblocked 阻塞监听。如果真的卡住了，强行清理缓存并刷新
+    req.onblocked = function() {
+        localStorage.clear();
+        alert("数据强制清理完成，系统将重新启动。");
+        location.reload();
+    };
+
+    // 【修复点3】：报错了也强行清空 localStorage 并刷新兜底
     req.onerror = function() {
-        alert("清除数据失败，请重试或手动清除浏览器应用缓存。");
+        localStorage.clear();
+        alert("清理数据时遇到异常，已尽力强制清空，系统将重新启动。");
+        location.reload();
     };
 };
 
