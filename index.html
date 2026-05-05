@@ -174,7 +174,7 @@ body {
             margin-top: 10px; cursor: text; position: relative; z-index: 10;
         }
         .memo-header { font-size: 14px; font-weight: 900; color: var(--line-color); opacity: 0.7; margin-bottom: 8px; }
-        .memo-content { font-size: 12px; font-weight: bold; line-height: 1.5; color: var(--line-color); word-break: break-all; outline: none; }
+        .memo-content { font-size: 12px; font-weight: bold; line-height: 1.5; color: var(--line-color); word-break: break-all; outline: none; min-height: 80px; width: 100%; flex: 1; }
 
         /* 中间四个 APP：排成一排 */
         .p3-mailbox  { grid-column: 1; grid-row: 3; margin-top: 15px; }
@@ -22367,6 +22367,13 @@ overlay.innerHTML = `
     <div style="display:flex; flex-direction:column; gap:12px; margin-top: 10px;">
         <button class="form-btn" style="background:var(--color-blue); color:#111; border-color:var(--line-color);" onclick="saveCurrentCybChatArchive('${accountId}', '${npcId}')">💾 封存当前聊天 (手动存档)</button>
         <button class="form-btn" style="background:var(--color-yellow); color:#111; border-color:var(--line-color);" onclick="openCybChatArchiveList('${accountId}', '${npcId}')">📂 聊天档案库 (手动读档)</button>
+        
+        <!-- 这里是为你加回来的三个管理按钮 -->
+        <div style="border-top: 2px dashed var(--line-color); margin: 4px 0; opacity: 0.5;"></div>
+        
+        <button class="form-btn" style="background:var(--bg-color); color:var(--text-main); border-color:var(--line-color);" onclick="clearCybChatHistory('${accountId}', '${npcId}')">🗑️ 清空聊天记录</button>
+        <button class="form-btn" style="background:${isBlocked ? 'var(--bg-color)' : 'var(--color-pink)'}; color:var(--text-main); border-color:var(--line-color);" onclick="toggleCybBlockInSettings('${accountId}', '${npcId}')">${isBlocked ? '✅ 解除拉黑' : '🚫 拉黑联系人'}</button>
+        <button class="form-btn" style="background:#e74c3c; color:#fff; border-color:#c0392b; box-shadow: 3px 3px 0 #c0392b;" onclick="deleteCybContact('${accountId}', '${npcId}')">⚠️ 彻底删除该好友</button>
     </div>
 
 </div>
