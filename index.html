@@ -22226,7 +22226,8 @@ let accountsToken = await getDB('cyb_accounts', []);
 let meToken = accountsToken.find(a => a.id === accountId) || { bio: '' };
 
 // 基础Prompt字数(大约800字) + 双方人设 + 记忆 + 指令 + 聊天上下文
-let totalTextLength = 800 + (contactToken.bio.length || 0) + (meToken.bio.length || 0) + memText.length + cmdText.length + JSON.stringify(textOnlyHistory).length;
+let historyTextLen = textOnlyHistory.reduce((sum, m) => sum + (m.content ? m.content.length : 0), 0);
+let totalTextLength = 800 + (contactToken.bio.length || 0) + (meToken.bio.length || 0) + memText.length + cmdText.length + historyTextLen;
 
 let estimatedTokens = Math.floor(totalTextLength * 1.2) + (imgCount * 250);
 
