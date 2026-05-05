@@ -22292,18 +22292,12 @@ overlay.innerHTML = `
             <label>读取上下文条数限制 (最近的N条)</label>
             <input type="number" id="set_contextCount" class="form-input" value="${settings.contextCount}" placeholder="推荐 10 - 30">
         </div>
-        <div class="form-group" style="margin-bottom:12px;">
-            <label>强制回复字数要求 (如: 100-300)</label>
-            <input type="text" id="set_wordCount" class="form-input" value="${settings.wordCount || ''}" placeholder="例如: 50-150字">
-        </div>
+
         <div class="form-group" style="margin-bottom:12px;">
             <label>自定义条数限制 (支持范围如 1-3，0为随机)</label>
             <input type="text" id="set_replyCount" class="form-input" value="${settings.replyCount}" placeholder="例如: 1-3">
         </div>
-        <div class="form-group" style="margin-bottom:12px;">
-            <label>附加风格约束 / 自定义指令提示词</label>
-            <textarea id="set_customStylePrompt" class="form-textarea" style="min-height:70px; font-size:12px;" placeholder="例如：多用白描，少说话多做事...">${settings.customStylePrompt || ''}</textarea>
-        </div>
+
 
         <div style="margin-bottom:12px; background:rgba(0,0,0,0.02); border:2px dashed var(--line-color); border-radius:12px; padding:12px;">
             <div style="font-size:13px; font-weight:900; margin-bottom:4px;">强制挂载全局指令集</div>
@@ -22364,9 +22358,7 @@ overlay.innerHTML = `
         </div>
     </div>
 
-    <div style="display:flex; flex-direction:column; gap:12px; margin-top: 10px;">
-        <button class="form-btn" style="background:var(--color-blue); color:#111; border-color:var(--line-color);" onclick="saveCurrentCybChatArchive('${accountId}', '${npcId}')">💾 封存当前聊天 (手动存档)</button>
-        <button class="form-btn" style="background:var(--color-yellow); color:#111; border-color:var(--line-color);" onclick="openCybChatArchiveList('${accountId}', '${npcId}')">📂 聊天档案库 (手动读档)</button>
+    
         
         <!-- 这里是为你加回来的三个管理按钮 -->
         <div style="border-top: 2px dashed var(--line-color); margin: 4px 0; opacity: 0.5;"></div>
@@ -22447,9 +22439,9 @@ allSettings[chatKey] = {
     bgBase64: window._tempCybBgBase64,
     contextCount: parseInt(document.getElementById('set_contextCount').value) || 15,
     autoSummary: document.getElementById('set_autoSummary').checked,
-    replyCount: document.getElementById('set_replyCount').value.trim() || '0',
-    wordCount: document.getElementById('set_wordCount').value.trim() || '',
-    customStylePrompt: document.getElementById('set_customStylePrompt').value.trim() || '',
+    replyCount: document.getElementById('set_replyCount')?.value.trim() || '0',
+    wordCount: '',
+    customStylePrompt: '',
     mountedCommands: mountedCmds,
     enableTrans: document.getElementById('set_enableTrans').checked,
     dateSummary: document.getElementById('set_dateSummary') ? document.getElementById('set_dateSummary').checked : false,
