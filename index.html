@@ -20925,7 +20925,8 @@ window.sendCybFriendRequest = async function(accountId, npcId, npcName, npcBio, 
 // ---------------- 独立聊天室系统 ----------------
 async function openCybChatWindow(accountId, npcId) {
     document.getElementById('cybShell').style.display = 'none';
-let contactsDb = await getDB('cyb_contacts', {});
+    await new Promise(resolve => setTimeout(resolve, 15)); // 【防卡顿补丁】强制让出主线程给浏览器渲染过渡动画
+    let contactsDb = await getDB('cyb_contacts', {});
 let contact = (contactsDb[accountId] || []).find(c => c.id === npcId) || { name: '未知对象', bio: '' };
 const displayName = contact.remark ? String(contact.remark) : String(contact.name || '未知');
     
@@ -20977,7 +20978,8 @@ if (!cybStyleNode) {
     cybStyleNode.id = 'cyb-dynamic-style';
     document.head.appendChild(cybStyleNode);
 }
-cybStyleNode.innerHTML = settings.customCss || '';
+let fontSizeRule = settings.bubbleFontSize ? `.cyb-bubble { font-size: ${settings.bubbleFontSize}px !important; }` : '';
+cybStyleNode.innerHTML = (settings.customCss || '') + '\n' + fontSizeRule;
 const customCssTag = ''; // 留空，不再混入下方 HTML 字符串中
 
 let lastMsgTime = 0;
@@ -20988,7 +20990,6 @@ if (fullHistory && fullHistory.length > 0) {
     daysKnown = Math.max(0, Math.floor((Date.now() - firstTime) / (1000 * 60 * 60 * 24)));
 }
 // --- 智能解析日程表获取在线状态 ---
-// --- 智能解析日程表获取在线状态 (区间判定版) ---
 window.currentCybAiStatus = 'online'; // 默认在线
 let isStatusEnabled = await getDB('ai_status_toggle_' + npcId, true);
 
@@ -22412,6 +22413,17 @@ overlay.innerHTML = `
         </div>
     </div>
 
+<div style="background:var(--neo-bg); border:2px solid var(--line-color); padding:16px; border-radius:16px; box-shadow: 4px 4px 0 var(--line-color); margin-bottom: 16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="const t=document.getElementById('bubbleFontSizeArea'); t.style.display=t.style.display==='none'?'block':'none';">
+            <div style="font-size:14px; font-weight:900;">气泡文字大小调节 ▼</div>
+            <div id="bubbleFontSizeDisplay" style="font-size: 16px; font-weight: 900; color: var(--color-pink);">${settings.bubbleFontSize || 14}px</div>
+        </div>
+        <div id="bubbleFontSizeArea" style="display:none; margin-top: 12px; border-top: 1px dashed rgba(0,0,0,0.1); padding-top: 12px;">
+            <div style="font-size: 11px; font-weight: bold; opacity: 0.6; margin-bottom: 12px;">左右拖动调整气泡内的字体大小（默认 14px）</div>
+            <input type="range" id="set_bubbleFontSize" min="10" max="24" step="1" value="${settings.bubbleFontSize || 14}" style="width: 100%; accent-color: var(--line-color);" oninput="document.getElementById('bubbleFontSizeDisplay').innerText = this.value + 'px'">
+        </div>
+    </div>
+    
     <div style="background:var(--neo-bg); border:2px solid var(--line-color); padding:16px; border-radius:16px; box-shadow: 4px 4px 0 var(--line-color);">
         <div style="font-size:14px; font-weight:900; margin-bottom:8px;">专属身份绑定 (我的方案)</div>
         <div style="font-size:11px; font-weight:bold; opacity:0.6; margin-bottom:10px;">选择一个你在“指令集”中创建的【我的档案】，对方将读取你的这个私人设定。</div>
@@ -22580,6 +22592,7 @@ document.querySelectorAll('.mount-cmd-checkbox:checked').forEach(cb => {
 
 allSettings[chatKey] = {
     customCss: document.getElementById('set_customCss').value.trim(),
+    bubbleFontSize: parseInt(document.getElementById('set_bubbleFontSize').value) || 14,
     bgUrl: document.getElementById('set_cybBgUrl').value.trim(),
     bgBase64: window._tempCybBgBase64,
     contextCount: parseInt(document.getElementById('set_contextCount').value) || 15,
@@ -22609,12 +22622,14 @@ await setDB('cyb_memory_settings_' + accountId + '_' + npcId, memSettings);
     if (oldStyle) oldStyle.remove();
 
     // 瞬间重新打开聊天室或实境，彻底重绘背景和所有的气泡颜色
-    if (document.getElementById('cybDateRoomModal')) {
-        document.getElementById('cybDateRoomModal').remove();
-        openCybDateRoom(accountId, npcId);
-    } else {
-        openCybChatWindow(accountId, npcId);
-    }
+    setTimeout(() => {
+        if (document.getElementById('cybDateRoomModal')) {
+            document.getElementById('cybDateRoomModal').remove();
+            openCybDateRoom(accountId, npcId);
+        } else {
+            openCybChatWindow(accountId, npcId);
+        }
+    }, 20); // 【防卡顿补丁】给浏览器20毫秒的时间清理旧DOM内存，彻底消除白屏掉帧
 };
 
 window.saveCybCssPreset = async function(accountId, npcId) {
