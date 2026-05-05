@@ -2831,6 +2831,19 @@ body.desktop-text-invert .widget-disc .app-label {
 .phone-hangup-btn-corner {
     top: calc(15px + env(safe-area-inset-top)) !important;
 }
+
+/* AI在线状态与悬浮面板样式 */
+.ai-status-dot {
+    width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-left: 6px; cursor: pointer; border: 1.5px solid var(--neo-bg); box-shadow: 1px 1px 0 var(--line-color); transition: transform 0.1s;
+}
+.ai-status-dot:active { transform: scale(0.8); }
+.status-online { background-color: #2ecc71; } /* 在线-绿 */
+.status-busy { background-color: #f1c40f; }   /* 忙碌-黄 */
+.status-offline { background-color: #555555; }  /* 离线-灰/黑 */
+
+.ai-status-popover {
+    position: absolute; top: 40px; left: 0; width: 240px; background: var(--neo-bg); border: 2.5px solid var(--line-color); border-radius: 16px; box-shadow: 6px 6px 0 rgba(0,0,0,0.15); padding: 14px; z-index: 10000; display: none; flex-direction: column; animation: fadeIn 0.2s; cursor: default;
+}
     </style>
     <!-- 动态插入用户字体库与CSS -->
     <style id="custom-font-style"></style>
@@ -4775,7 +4788,20 @@ async function editProfile(type, id = null) {
                         <input type="file" id="profileCoverUpload" style="display:none;" accept="image/*" onchange="handleProfileCoverUpload(event)">
                         <div id="profileCoverStatus" style="font-size:11px; font-weight:bold; color:var(--color-pink); text-align:center; display:none;"></div>
                     </div>
-                    
+                    <!-- 新增：用户的个人作息表及同步开关 -->
+                    ${type === 'user' ? `
+                    <div class="profile-edit-item" style="flex-direction: column; align-items: stretch; gap: 8px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span class="profile-edit-label" style="width:auto; color:var(--color-pink); opacity:1;">我的现实作息表</span>
+                            <label class="switch" style="transform: scale(0.8); margin: 0;">
+                                <input type="checkbox" id="userSyncSchedule" ${profile && profile.syncSchedule ? 'checked' : ''}>
+                                <span class="slider-btn"></span>
+                            </label>
+                        </div>
+                        <div style="font-size:11px; font-weight:bold; opacity:0.6; margin-bottom:4px;">开关开启后，你在终端聊天时，TA会知道你这个时间段正在干嘛。</div>
+                        <textarea id="userScheduleText" class="form-textarea" style="min-height: 100px; resize: none; background: rgba(0,0,0,0.03); padding: 12px; border-radius: 12px; border: 2px dashed rgba(0,0,0,0.1); font-family:monospace; font-size:12px; line-height:1.6;" placeholder="请按此格式输入：\n00:00-08:00 睡觉\n08:00-18:00 上班搬砖\n18:00-24:00 打游戏休息">${profile ? (profile.schedule || "00:00-08:00 睡觉\n08:00-18:00 上班搬砖\n18:00-24:00 打游戏休息") : "00:00-08:00 睡觉\n08:00-18:00 上班搬砖\n18:00-24:00 打游戏休息"}</textarea>
+                    </div>
+                    ` : ''}
                     <!-- 新增：同步到终端的超直观开关 -->
                     ${type === 'ai' ? `
                     <div class="profile-edit-item" style="justify-content: space-between; align-items: center; border-color: var(--color-pink); box-shadow: 2px 2px 0 var(--color-pink);">
@@ -4837,7 +4863,11 @@ async function saveProfile(type, id) {
             profile.coverUrl = coverUrl;
             profile.coverB64 = finalCoverB64;
             profile.hideDotPattern = hideDots;
-            
+            // 保存用户专属的作息数据
+            if (type === 'user') {
+                profile.schedule = document.getElementById('userScheduleText').value.trim();
+                profile.syncSchedule = document.getElementById('userSyncSchedule').checked;
+            }
             // 同步更新已经存在于终端好友列表的资料
             if (type === 'ai') {
                 let cybContactsDb = await getDB('cyb_contacts', {});
@@ -4863,7 +4893,9 @@ async function saveProfile(type, id) {
             avatar: tempAvatarB64 || null,
             coverUrl: coverUrl,
             coverB64: finalCoverB64,
-            hideDotPattern: hideDots
+            hideDotPattern: hideDots,
+            schedule: type === 'user' ? document.getElementById('userScheduleText').value.trim() : "",
+            syncSchedule: type === 'user' ? document.getElementById('userSyncSchedule').checked : false
         });
     }
     
@@ -20949,6 +20981,52 @@ cybStyleNode.innerHTML = settings.customCss || '';
 const customCssTag = ''; // 留空，不再混入下方 HTML 字符串中
 
 let lastMsgTime = 0;
+// --- 新增：计算相识天数与在线状态 ---
+let daysKnown = 0;
+if (fullHistory && fullHistory.length > 0) {
+    let firstTime = fullHistory[0].timestamp;
+    daysKnown = Math.max(0, Math.floor((Date.now() - firstTime) / (1000 * 60 * 60 * 24)));
+}
+// --- 智能解析日程表获取在线状态 ---
+// --- 智能解析日程表获取在线状态 (区间判定版) ---
+window.currentCybAiStatus = 'online'; // 默认在线
+let isStatusEnabled = await getDB('ai_status_toggle_' + npcId, true);
+
+if (isStatusEnabled) {
+    let schedules = await getDB('ai_schedules', {});
+    let scheduleText = schedules[npcId] || "";
+    
+    let now = new Date();
+    let timeNum = now.getHours() + now.getMinutes() / 60;
+    
+    let events = scheduleText.split('\n').filter(Boolean);
+    let activeEvent = "";
+    
+    for(let line of events) {
+        let match = line.match(/^(\d{2}:\d{2})-(\d{2}:\d{2})\s+(.+)$/);
+        if(match) {
+            let sSplit = match[1].split(':'); let eSplit = match[2].split(':');
+            let sNum = parseInt(sSplit[0]) + parseInt(sSplit[1])/60;
+            let eNum = parseInt(eSplit[0]) + parseInt(eSplit[1])/60;
+            
+            // 判断是否在时间区间内（包含跨夜判断，如 23:00 - 08:00）
+            if (sNum < eNum) {
+                if (timeNum >= sNum && timeNum < eNum) activeEvent = match[3];
+            } else {
+                if (timeNum >= sNum || timeNum < eNum) activeEvent = match[3];
+            }
+        }
+    }
+
+    if (activeEvent) {
+        if (activeEvent.match(/睡|晚安|休息|离线|不在|休眠/)) window.currentCybAiStatus = 'offline';
+        else if (activeEvent.match(/工作|开会|上课|忙|学习|打工|搬砖/)) window.currentCybAiStatus = 'busy';
+    }
+}
+// ------------------------------------
+let statusClass = window.currentCybAiStatus === 'online' ? 'status-online' : (window.currentCybAiStatus === 'busy' ? 'status-busy' : 'status-offline');
+let statusText = window.currentCybAiStatus === 'online' ? '在线' : (window.currentCybAiStatus === 'busy' ? '忙碌' : '离线 (无法回复)');
+// ------------------------------------
 let msgsHtml = '';
 if (hasMoreMsgs) {
     msgsHtml += `<div style="text-align:center; padding-top: 10px; margin-bottom: 16px;"><span style="font-size:12px; font-weight:900; color:var(--text-main); opacity:0.6; cursor:pointer; background:var(--neo-bg); padding:6px 14px; border-radius:12px; border:2px solid var(--line-color); box-shadow:2px 2px 0 var(--line-color);" onclick="loadMoreCybChats('${accountId}', '${npcId}')">↑ 点击加载更早的消息</span></div>`;
@@ -21112,8 +21190,27 @@ overlay.innerHTML = `
             <div class="x-chat-back-only" onclick="window.isCybMultiSelectMode=false; closeCybChatWindow('${accountId}')" style="background:transparent; border:none; box-shadow:none;">
                 <svg viewBox="0 0 24 24" style="width:24px;height:24px;stroke:var(--text-main);fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
             </div>
-            <div style="font-size:17px; font-weight:900; color:var(--text-main); cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" onclick="openCybContactProfileModal('${accountId}', '${npcId}')">${displayName}</div>
+            <div style="display:flex; align-items:center; position:relative;">
+    <div style="font-size:17px; font-weight:900; color:var(--text-main); cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" onclick="openCybContactProfileModal('${accountId}', '${npcId}')">${displayName}</div>
+<!-- 状态小点 -->
+    <div class="ai-status-dot ${statusClass}" onclick="toggleAiStatusPopover(event)" title="${statusText}"></div>
+    <!-- 下拉悬浮面板 -->
+    <div id="aiStatusPopover" class="ai-status-popover" onclick="event.stopPropagation()">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:2px dashed rgba(0,0,0,0.1); padding-bottom:8px;">
+            <div style="font-size:14px; font-weight:900; color:var(--color-pink); display:flex; align-items:center; gap:6px;">
+                <div style="width:12px; height:12px; border-radius:50%; background:${window.currentCybAiStatus==='online'?'#2ecc71':(window.currentCybAiStatus==='busy'?'#f1c40f':'#555')}; border:1.5px solid var(--line-color);"></div>
+                ${statusText}
+            </div>
+            <div style="font-size:11px; font-weight:900; opacity:0.6;">相识 ${daysKnown} 天</div>
         </div>
+        <div style="font-size:12px; font-weight:bold; line-height:1.5; color:var(--text-main); margin-bottom:14px; background:var(--bg-color); padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,0.05);">
+            <span style="opacity:0.5; font-weight:900; display:block; margin-bottom:4px; font-size:11px;">[ 签名档案 ]</span>
+            ${(contact.bio || '此人保留了神秘感...').length > 20 ? (contact.bio.substring(0, 20) + '<span style="color:var(--color-blue); font-weight:900;"> ... (已折叠)</span>') : (contact.bio || '此人保留了神秘感...')}
+        </div>
+        <button class="diary-mini-btn" style="width:100%; background:var(--color-blue); box-shadow: 2px 2px 0 var(--line-color); padding: 8px 0; font-size:12px;" onclick="openAiScheduleModal('${npcId}', '${displayName}')">调整 TA 的作息表</button>
+    </div>
+        </div>
+    </div> <!-- 👈 补上这个救命的 </div> ！！ -->
         <div style="display:flex; gap:8px;">
     <div onclick="openCybDateRoom('${accountId}', '${npcId}')" style="cursor:pointer; width: 36px; height: 36px; border: 2.5px solid var(--line-color); border-radius: 10px; background: var(--color-pink); box-shadow: 2px 2px 0 var(--line-color); flex-shrink:0; display:flex; align-items:center; justify-content:center;" title="实境">
         <svg viewBox="0 0 24 24" style="width: 20px; height: 20px; stroke: #111; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
@@ -21663,6 +21760,13 @@ if (isNpcBlockedUser) {
 
 // ---------------- 2. 接收多气泡消息 ----------------
 window.receiveCybChatMsg = async function(accountId, npcId) {
+// 新增：判断离线状态，拦截API
+    if (window.currentCybAiStatus === 'offline') {
+        uiAlert("对方目前处于离线状态，手机可能没在身边，无法接收或回复消息。");
+        const btn = document.getElementById('wbReceiveBtn');
+        if (btn) btn.disabled = false;
+        return;
+    }
     let contactsDbCheck = await getDB('cyb_contacts', {});
     let contactCheck = (contactsDbCheck[accountId] || []).find(c => c.id === npcId);
     if (contactCheck && contactCheck.isGroup) {
@@ -21695,11 +21799,39 @@ window.receiveCybChatMsg = async function(accountId, npcId) {
     let accounts = await getDB('cyb_accounts', []);
     let me = accounts.find(a => a.id === accountId) || { name: '我', bio: '' };
 
-    let allSettings = await getDB('cyb_chat_settings', {});
+let allSettings = await getDB('cyb_chat_settings', {});
     let chatKey = accountId + '_' + npcId;
     let settings = allSettings[chatKey] || { contextCount: 15, replyCount: 0 };
-    let userProfiles = await getDB('user_profiles', []);
+    
+    let userProfiles = await getDB('user_profiles',[]);
     let specificUser = userProfiles.find(p => String(p.id) === String(settings.selectedUserProfile));
+
+    // 计算认识天数
+    let daysKnownStr = "";
+    if (chatList.length > 0) {
+        let firstTime = chatList[0].timestamp;
+        let days = Math.max(0, Math.floor((Date.now() - firstTime) / (1000 * 60 * 60 * 24)));
+        daysKnownStr = `\n[相识天数：${days}天]`;
+    }
+
+    // --- 解析用户当前作息状态 ---
+    let userSchedulePrompt = "";
+    if (specificUser && specificUser.syncSchedule && specificUser.schedule) {
+        let now = new Date();
+        let timeNum = now.getHours() + now.getMinutes() / 60;
+        let lines = specificUser.schedule.split('\n').filter(Boolean);
+        for (let line of lines) {
+            let match = line.match(/^(\d{2}:\d{2})-(\d{2}:\d{2})\s+(.+)$/);
+            if (match) {
+                let sNum = parseInt(match[1].split(':')[0]) + parseInt(match[1].split(':')[1])/60;
+                let eNum = parseInt(match[2].split(':')[0]) + parseInt(match[2].split(':')[1])/60;
+                let isActive = sNum < eNum ? (timeNum >= sNum && timeNum < eNum) : (timeNum >= sNum || timeNum < eNum);
+                if (isActive) {
+                    userSchedulePrompt = `\n【重要状态感知】：AI请注意，用户现实中的作息表显示她当前时间段正在进行：[ ${match[3]} ]。`;
+                }
+            }
+        }
+    }
     const limit = parseInt(settings.contextCount) || 15;
     let enableTrans = settings.enableTrans !== false;
     
@@ -21806,7 +21938,9 @@ const prompt = `${beforeCmds ? '【前置全局设定】：\n' + beforeCmds + '\
 - 我的终端账号名字: ${me.name}
 - 我的个人签名: ${me.bio}
 ${specificUser ? `- 我在你这里的私密备注: ${specificUser.name}\n- 我在你这里的私密印象: ${specificUser.bio}` : ''}
-
+${daysKnownStr}
+${userSchedulePrompt}
+${currentTimeStr}${timeGapHint}
 ${currentTimeStr}${timeGapHint}
 ${memoryStr}
 ${smsMemoryText}
@@ -21814,7 +21948,7 @@ ${stickerPrompt}
 
 【第三部分：核心行为逻辑与思维指南 (非常重要)】
 1.  **你是活生生的人，不是AI**：忘记你是一个语言模型。你需要从角色的第一视角出发，拥有独立的性格、情绪和思考方式。你的回复应该源于角色的内在动机，而不是为了迎合用户。
-2.  **手机聊天场景感**：你们正在用类似微信的聊天软件，通过手机打字交流。这意味著：
+2.  **手机聊天场景感**：你们正在用类似微信的聊天软件，通过手机打字交流。这意味着：
     -   你的性格禁止刻板印象。人的性格是多面的，多样化的，认知也是会随着时间改变的。
     -   必须思考作为自己，此刻会说什么话？用什么态度？语气如何？是否陷入性格刻板印象的误区？
     -   **思考与停顿**：想象一下你打字时的思考过程。这会影响你每句话的长度和内容，以及多条消息之间的关联。
@@ -31031,6 +31165,255 @@ window.loadCybDateArchive = async function(id, accountId, npcId) {
     uiAlert("✅ 存档读取完毕！");
 };
 
+// ==========================================
+// 新增：AI状态面板与日程表系统
+// ==========================================
+
+// 切换悬浮面板显示/隐藏
+window.toggleAiStatusPopover = function(e) {
+    e.stopPropagation();
+    const popover = document.getElementById('aiStatusPopover');
+    if (popover) {
+        popover.style.display = popover.style.display === 'flex' ? 'none' : 'flex';
+    }
+};
+
+// 点击屏幕空白处自动收起悬浮面板
+document.addEventListener('click', function(e) {
+    const popover = document.getElementById('aiStatusPopover');
+    if (popover && popover.style.display === 'flex') {
+        popover.style.display = 'none';
+    }
+});
+
+// --- 智能时间格式化引擎 (干掉丑陋的原生时钟面板) ---
+window.formatTimeInput = function(el) {
+    el.value = el.value.replace(/[^\d:]/g, ''); // 拦截除了数字和冒号以外的所有字符
+};
+window.blurTimeInput = function(el) {
+    let val = el.value.replace(/[^\d]/g, ''); // 提取纯数字
+    if (!val) { el.value = "00:00"; return; } // 空值兜底
+    
+    let h = '00', m = '00';
+    if (val.length === 1) { h = '0' + val; }                         // 输入 8 -> 08:00
+    else if (val.length === 2) { h = val; }                          // 输入 12 -> 12:00
+    else if (val.length === 3) { h = '0' + val[0]; m = val.substring(1,3); } // 输入 830 -> 08:30
+    else if (val.length >= 4) { h = val.substring(0,2); m = val.substring(2,4); } // 输入 1445 -> 14:45
+
+    if (parseInt(h) > 23) h = '23'; // 封顶 23 时
+    if (parseInt(m) > 59) m = '59'; // 封顶 59 分
+    el.value = h + ':' + m;
+};
+
+// 打开日程表弹窗 (升级版：支持精确到分钟的系统原生时间选择器)
+window.openAiScheduleModal = async function(npcId, aiName) {
+    const popover = document.getElementById('aiStatusPopover');
+    if (popover) popover.style.display = 'none';
+
+    let schedules = await getDB('ai_schedules', {});
+    // 默认时间
+    let aiSchedule = schedules[npcId] || "00:00-08:00 沉睡休眠\n08:00-12:00 赛博搬砖\n12:00-14:00 午休充电\n14:00-18:00 继续搬砖\n18:00-00:00 自由活动";
+    let isStatusOn = await getDB('ai_status_toggle_' + npcId, true);
+
+    let lines = aiSchedule.split('\n').filter(Boolean);
+    const defaultStarts =['00:00', '08:00', '12:00', '14:00', '18:00'];
+    const defaultEnds =['08:00', '12:00', '14:00', '18:00', '00:00'];
+
+    let rowsHtml = '';
+    for(let i=0; i<5; i++) {
+        let line = lines[i] || '';
+        let match = line.match(/^(\d{2}:\d{2})-(\d{2}:\d{2})\s+(.+)$/);
+        let sTime = match ? match[1] : defaultStarts[i];
+        let eTime = match ? match[2] : defaultEnds[i];
+        let event = match ? match[3] : '未知';
+        
+        // 兼容原生的时间选择器
+        if (sTime === '24:00') sTime = '00:00';
+        if (eTime === '24:00') eTime = '00:00';
+
+        rowsHtml += `
+        <div style="display:flex; gap:8px; margin-bottom:10px; align-items:center; background:var(--neo-bg); padding:6px 10px; border-radius:12px; border:2px solid var(--line-color); box-shadow:inset 2px 2px 0 rgba(0,0,0,0.03);">
+            <div style="display:flex; align-items:center; gap:2px; background:var(--bg-color); border-radius:8px; padding:2px 6px; border:1px solid rgba(0,0,0,0.1);">
+                <!-- 彻底干掉 type="time"，换成 inputmode="numeric" 的文本框，只弹数字键盘 -->
+                <input type="text" inputmode="numeric" id="sch_start_${i}" value="${sTime}" placeholder="00:00" maxlength="5" oninput="formatTimeInput(this)" onblur="blurTimeInput(this)" style="border:none; outline:none; background:transparent; font-weight:900; font-family:monospace; font-size:13px; color:var(--text-main); padding:0; margin:0; width:44px; text-align:center;">
+                <span style="font-weight:900; opacity:0.3;">-</span>
+                <input type="text" inputmode="numeric" id="sch_end_${i}" value="${eTime}" placeholder="00:00" maxlength="5" oninput="formatTimeInput(this)" onblur="blurTimeInput(this)" style="border:none; outline:none; background:transparent; font-weight:900; font-family:monospace; font-size:13px; color:var(--text-main); padding:0; margin:0; width:44px; text-align:center;">
+            </div>
+            <input type="text" id="sch_event_${i}" class="form-input" style="flex:1; padding:6px; font-size:13px; border:none; border-left:2px dashed var(--line-color); border-radius:0; box-shadow:none; background:transparent;" placeholder="输入当前做什么" value="${event}">
+        </div>`;
+    }
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'aiScheduleModal';
+    overlay.style.display = 'flex';
+    overlay.style.zIndex = '9999999';
+    overlay.innerHTML = `
+        <div class="modal-content" style="max-width:340px; padding: 0; border: 3px solid var(--line-color); box-shadow: 6px 6px 0 var(--line-color); border-radius: 20px; overflow: hidden; background: var(--bg-color);">
+            <div style="background: var(--color-blue); padding: 16px 20px; border-bottom: 3px solid var(--line-color); display:flex; align-items:center; justify-content:space-between;">
+                <div style="font-size: 16px; font-weight: 900; color: #111;">${aiName} 的作息表</div>
+                <div onclick="document.getElementById('aiScheduleModal').remove()" style="cursor:pointer; width:30px; height:30px; background:var(--color-pink); border:2.5px solid var(--line-color); border-radius:10px; display:flex; align-items:center; justify-content:center; box-shadow: 2px 2px 0 var(--line-color);">
+                    <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:#111;fill:none;stroke-width:3;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </div>
+            </div>
+            <div style="padding: 20px;">
+                <div class="switch-wrap" style="box-shadow:none; border:2px dashed var(--line-color); padding:12px; margin-bottom:16px; border-radius:12px; background: var(--neo-bg);">
+                    <div>
+                        <div style="font-size: 14px; font-weight: 900;">状态跟随作息表</div>
+                        <div style="font-size: 11px; font-weight: bold; opacity: 0.6; margin-top:4px;">关闭后，Ta将永远保持 [在线]</div>
+                    </div>
+                    <label class="switch" style="transform:scale(0.8); margin:0;">
+                        <input type="checkbox" id="aiStatusToggleInput" ${isStatusOn ? 'checked' : ''}>
+                        <span class="slider-btn"></span>
+                    </label>
+                </div>
+                <div style="font-size:12px; font-weight:900; opacity:0.6; margin-bottom:12px;">时间段与当前状态 (允许自由输入)：</div>
+                ${rowsHtml}
+                <div style="display:flex; gap:10px; margin-top: 16px;">
+                    <button class="form-btn" id="btnAutoSch" style="flex:1; background:var(--color-yellow); font-size:14px; padding:12px; box-shadow: 3px 3px 0 var(--line-color); color:var(--text-main);" onclick="generateAiSchedule('${npcId}', '${aiName}')">让TA排表</button>
+                    <button class="form-btn" style="flex:1; background:var(--color-green); font-size:14px; padding:12px; box-shadow: 3px 3px 0 var(--line-color); color:var(--text-main);" onclick="saveAiSchedule('${npcId}', this)">保存设置</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+};
+
+window.saveAiSchedule = async function(npcId, btn) {
+    try {
+        let lines =[];
+        for(let i=0; i<5; i++) {
+            let sEl = document.getElementById('sch_start_'+i);
+            let eEl = document.getElementById('sch_end_'+i);
+            let evEl = document.getElementById('sch_event_'+i);
+            
+            let s = sEl ? sEl.value : '00:00';
+            let e = eEl ? eEl.value : '00:00';
+            let eventText = (evEl ? evEl.value.trim() : '') || '发呆';
+            lines.push(`${s}-${e} ${eventText}`); 
+        }
+        
+        // 增加安全的数据读取判断，防止报错卡死
+        let schedules = await getDB('ai_schedules', {});
+        if (typeof schedules !== 'object' || schedules === null) schedules = {};
+        schedules[npcId] = lines.join('\n');
+        await setDB('ai_schedules', schedules);
+        
+        let toggle = document.getElementById('aiStatusToggleInput');
+        if(toggle) {
+            await setDB('ai_status_toggle_' + npcId, toggle.checked);
+        }
+        
+        // 瞬间变色
+        if (btn) {
+            btn.innerText = "保存成功 ✔";
+            btn.style.background = "var(--color-yellow)";
+            btn.style.color = "#111";
+            btn.style.pointerEvents = "none";
+        }
+    } catch(e) {
+        console.error("保存作息表时遇到小干扰:", e);
+    } finally {
+        // 无论保存是否成功，半秒后绝对强制关闭面板！
+        setTimeout(() => {
+            let modal = document.getElementById('aiScheduleModal');
+            if (modal) modal.remove();
+        }, 500);
+    }
+};
+window.generateAiSchedule = async function(npcId, aiName) {
+    const apiUrl = await getDB('apiUrl');
+    const apiKey = await getDB('apiKey');
+    const model = await getDB('aiModel');
+
+    if (!apiUrl || !apiKey || !model) {
+        return uiAlert("请先在系统设置中配置 API 才能使用自动生成哦！");
+    }
+
+    // 获取 AI 人设
+    let aiProfiles = await getDB('ai_profiles',[]);
+    let realId = npcId.toString().replace('cyb_npc_', '');
+    let targetAI = aiProfiles.find(p => String(p.id) === realId);
+    let bio = targetAI ? targetAI.bio : '一个普通人';
+
+    const btn = document.getElementById('btnAutoSch');
+    if (btn) {
+        btn.innerText = "填写中...";
+        btn.disabled = true;
+    }
+
+    const prompt = `请根据以下角色的身份和性格设，为他/她制定一份符合逻辑的【今日详细作息表】。
+角色名字：${aiName}
+角色设定：${bio}
+要求：
+1. 必须精准划分为 5 个连续的时间段，覆盖全天的主要活动。时间设定可以非常随意精确到分（例如 07:15、11:45、23:20），不需要死板的局限于整点。
+2. 内容要高度符合人物性格、职业背景、时代背景。
+3. 事件描述控制在10个字以内。
+4. 必须严格按照下面的格式输出 5 行，不要有多余的废话和 markdown 标记，绝不要用 emoji！
+格式示例：
+00:00-08:15 沉睡休眠
+08:15-12:30 赛博搬砖
+12:30-14:20 午休充电
+14:20-18:45 继续搬砖
+18:45-00:00 自由活动
+(注意：午夜零点请写 00:00，不要写 24:00)`;
+
+    try {
+        const endpoint = apiUrl.replace(/\/+$/, '') + (apiUrl.includes('/v1') ? '/chat/completions' : '/v1/chat/completions');
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({ model: model, messages: [{ role: 'system', content: prompt }], temperature: 0.85 })
+        });
+        const data = await res.json();
+        if (data.choices && data.choices[0]) {
+            let rawText = data.choices[0].message.content.trim().replace(/```json/gi, '').replace(/```/g, '');
+            let lines = rawText.split('\n').filter(l => l.includes('-') && l.includes(':'));
+            
+            // 自动解析并把值直接填入 5 个原生时间框里
+            for(let i=0; i<5 && i<lines.length; i++) {
+                let match = lines[i].match(/^(\d{2}:\d{2})-(\d{2}:\d{2})\s+(.+)$/);
+                if(match) {
+                    let sEl = document.getElementById('sch_start_'+i);
+                    let eEl = document.getElementById('sch_end_'+i);
+                    let evEl = document.getElementById('sch_event_'+i);
+                    
+                    if(sEl) {
+                        let start = match[1];
+                        if (start === '24:00') start = '00:00';
+                        sEl.value = start;
+                    }
+                    if(eEl) {
+                        let end = match[2];
+                        if (end === '24:00') end = '00:00';
+                        eEl.value = end;
+                    }
+                    if(evEl) evEl.value = match[3].trim();
+                }
+            }
+            
+            // 取消弹窗打断，直接让按钮变成绿色 ✅ 提示
+            if (btn) {
+                btn.innerText = "排表完成 ✔";
+                btn.style.background = "var(--color-green)";
+                setTimeout(() => {
+                    btn.innerText = "AI 自动排表";
+                    btn.style.background = "var(--color-yellow)";
+                    btn.disabled = false;
+                }, 2000);
+                return; // 提前退出，避免被 finally 瞬间重置
+            }
+        }
+    } catch(e) {
+        uiAlert("网络波动，排表失败，请重试。");
+    } 
+    
+    // 如果出错了兜底恢复按钮
+    if (btn) {
+        btn.innerText = "AI 自动排表";
+        btn.disabled = false;
+    }
+};
 </script>
 
 </body>
