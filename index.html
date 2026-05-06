@@ -20708,14 +20708,50 @@ async function openCybAddFriendModal(accountId) {
         <div class="modal-content" style="max-width:320px; padding: 24px;">
             <h3 style="text-align:center; margin-bottom: 20px;">雷达与扩列</h3>
             <div style="display:flex; flex-direction:column; gap:12px;">
-                <button class="form-btn" style="background:var(--color-pink); font-size:14px;" onclick="showCybImportProfiles('${accountId}')">从 [指令集角色卡] 直接发送邀请</button>
+                <button class="form-btn" style="background:var(--color-pink); font-size:14px;" onclick="showCybImportProfiles('${accountId}')">从 [指令集角色卡] 发送邀请</button>
                 <button class="form-btn" style="background:var(--color-yellow); font-size:14px;" onclick="showCybNearbySearch('${accountId}')">雷达扫描附近的人</button>
+                <button class="form-btn" style="background:var(--color-blue); font-size:14px; color:#fff; border-color:var(--line-color); box-shadow:3px 3px 0 var(--line-color);" onclick="addNativeGemini('${accountId}')">添加原生Gemini</button>
             </div>
             <button class="form-btn" style="width:100%; margin-top:24px; background:#5a5f66; color:#fff;" onclick="document.getElementById('cybAddFriendModal').remove()">取消</button>
         </div>
     `;
     document.body.appendChild(overlay);
 }
+
+// 内置原生 AI 添加逻辑
+window.addNativeGemini = async function(accountId) {
+    let contactsDb = await getDB('cyb_contacts', {});
+    if(!contactsDb[accountId]) contactsDb[accountId] =[];
+    
+    const npcId = 'cyb_npc_native_ai';
+    if (!contactsDb[accountId].find(c => c.id === npcId)) {
+        contactsDb[accountId].push({
+            id: npcId,
+            name: 'Gemini (原生AI)',
+            bio: '纯粹的AI助手，没有任何角色扮演和性格限制。',
+            avatarImg: ''
+        });
+        await setDB('cyb_contacts', contactsDb);
+        
+        let chatsDb = await getDB('cyb_chats', {});
+        if(!chatsDb[accountId]) chatsDb[accountId] = {};
+        if(!chatsDb[accountId][npcId]) chatsDb[accountId][npcId] = [];
+        
+        if(chatsDb[accountId][npcId].length === 0) {
+            chatsDb[accountId][npcId].push({
+                role: 'npc',
+                content: '你好！我是原生Gemini，我可以帮你答疑解惑、翻译或者纯聊天。',
+                timestamp: Date.now()
+            });
+            await setDB('cyb_chats', chatsDb);
+        }
+    }
+    
+    document.getElementById('cybAddFriendModal').remove();
+    uiAlert("原生 AI (Gemini) 已加入通讯录！");
+    window.cybCurrentTab = 'chat';
+    renderCybMainScreen();
+};
 
 // 分支 A: 导入已有的指令集角色
 async function showCybImportProfiles(accountId) {
@@ -21115,10 +21151,14 @@ if (contact.isGroup && !isUser) {
         }
     }
     finalNpcAvatarDiv = `
-    <div class="cyb-avatar-container" style="cursor: pointer;">
+    <div class="cyb-avatar-container" ondblclick="executeCybNudge('${accountId}', '${npcId}')" style="cursor: pointer;">
         <div style="width:100%; height:100%; border-radius:12px; border:2px solid var(--line-color); ${memAvStyle} background-color:var(--color-pink); display:flex; align-items:center; justify-content:center; font-weight:900; font-size:14px; background-position:center; background-size:cover; pointer-events:none;">${memInitial}</div>
     </div>`;
-    senderNameTip = `<div style="font-size:11px; font-weight:900; color:var(--color-pink); margin-bottom:4px; margin-left: 54px;">${memName}</div>`;
+    let titleStr = '';
+if (contact.titles && contact.titles[msg.speakerId]) {
+    titleStr = `<span style="background:var(--color-pink); color:#111; padding:2px 6px; border-radius:4px; font-size:9px; border:1px solid #111; margin-right:4px;">${contact.titles[msg.speakerId]}</span>`;
+}
+            senderNameTip = `<div style="font-size:11px; font-weight:900; color:var(--color-pink); margin-bottom:4px; margin-left: 54px; display:flex; align-items:center;">${titleStr}${memName}</div>`;
 }
 
 let failedIcon = msg.failed ? `<div style="margin: 0 6px; display:flex; align-items:center;"><svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:none;stroke:#e74c3c;stroke-width:2.5;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg></div>` : '';
@@ -21831,6 +21871,14 @@ let isUserBlockedNpc = (blocksDb[accountId] || []).includes(npcId);
 let npcBlocks = await getDB('cyb_npc_blocks', []);
 let isNpcBlockedUser = npcBlocks.includes(accountId + '_' + npcId);
 
+    let contactsDbForMute = await getDB('cyb_contacts', {});
+    let targetContact = (contactsDbForMute[accountId] ||[]).find(c => c.id === npcId);
+    if (targetContact && targetContact.isGroup && targetContact.muted && targetContact.muted[accountId] > Date.now()) {
+        let remain = Math.ceil((targetContact.muted[accountId] - Date.now()) / 60000);
+        uiAlert(`🚫 你已被群主禁言，无法发送消息！\n距离解禁还有大约 ${remain} 分钟。`);
+        return;
+    }
+    
 if (isUserBlockedNpc) {
     uiAlert("你已将对方拉黑，无法发送消息，请先解除拉黑。");
     return;
@@ -22054,7 +22102,17 @@ else if (diffHours > 1) timeGapHint = ``; // 1到8小时属于正常聊天间隔
 let customStyleConstraint = settings.customStylePrompt ? `\n- 风格设定约束：${settings.customStylePrompt}` : '';
 
 // === 活人感增强版 Prompt v2 (修正版) ===
-const prompt = `${beforeCmds ? '【前置全局设定】：\n' + beforeCmds + '\n\n' : ''}你正在进行一场沉浸式的、高度拟人化的语C(Roleplay)。
+let prompt = '';
+
+if (npcId === 'cyb_npc_native_ai') {
+    prompt = `${memoryStr}
+
+【系统级格式死命令】（必须严格遵守，否则客户端无法解析！）：
+1. 气泡切分：本次回复，请生成 ${minReply} 到 ${maxReply} 条独立的聊天气泡。每一个独立的气泡之间，必须严格用 === 作为分隔符。绝不能省略！
+2. 严禁使用 JSON 格式，严禁使用任何 Markdown 代码块标签（如 \`\`\` ），直接输出纯文本即可。
+3. 直接给出你的回答，绝对不要输出 <thinking> 等任何思维链标签。`;
+} else {
+    prompt = `${beforeCmds ? '【前置全局设定与挂载指令】：\n' + beforeCmds + '\n\n' : ''}你正在进行一场沉浸式的、高度拟人化的语C(Roleplay)。
 
 【第一部分：你的核心设定】
 - 你的名字: ${contact.name}
@@ -22066,7 +22124,6 @@ const prompt = `${beforeCmds ? '【前置全局设定】：\n' + beforeCmds + '\
 ${specificUser ? `- 我在你这里的私密备注: ${specificUser.name}\n- 我在你这里的私密印象: ${specificUser.bio}` : ''}
 ${daysKnownStr}
 ${userSchedulePrompt}
-${currentTimeStr}${timeGapHint}
 ${currentTimeStr}${timeGapHint}
 ${memoryStr}
 ${smsMemoryText}
@@ -22095,7 +22152,7 @@ ${enableTrans ? `2.  **翻译格式**：
 
 【第五部分：特殊互动机制】（若需触发，请单独占一个气泡）
 - 戳一戳: [戳一戳] 我戳了戳你的xxx
-- 语音: [语音] 5"\\n这里写具体文字内容
+- 语音:[语音] 5"\\n这里写具体文字内容
 - 发送照片: [图片] 照片标题\\n这里写详细的画面视觉描述，让人有画面感
 - 红包/转账: [[REDPACKET:金额:留言]]
 - 定位: [[LOCATION:地名]]
@@ -22115,6 +22172,7 @@ ${enableTrans ? `2.  **翻译格式**：
 ===
 有事？
 ${afterCmds ? '\n\n【附加规则】：\n' + afterCmds : ''}`;
+}
             let messages = [{ role: 'system', content: prompt }];
             chatList.slice(-limit).forEach((msg, idx) => {
                 let msgContent = msg.content;
@@ -22150,10 +22208,18 @@ if (msg.imageBase64 && (idx >= chatList.slice(-limit).length - 3)) {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
                 body: JSON.stringify({ model, messages, temperature: 0.85 }) // 稍微调低了一点温度，防止严重幻觉
-            });
-            const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (json.error.message || "未知错误"));
-            
-            if (json.choices && json.choices[0]) {
+        });
+        const json = await res.json(); if(json && json.error) uiAlert("API报错: " + (data.error.message || "未知错误"));
+
+        // 👇 新增：精准抓取本次请求的真实 Token 消耗
+        if (json.usage) {
+            let actualTokens = json.usage.total_tokens || 0;
+            let promptTokens = json.usage.prompt_tokens || 0;
+            await setDB('last_actual_tokens_' + accountId + '_' + npcId, { total: actualTokens, prompt: promptTokens });
+        }
+        // 👆 新增结束
+        
+        if (json.choices && json.choices[0]) {
                 let raw = json.choices[0].message.content.trim().replace(/[\u{1F600}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '');
 
 // ▼▼▼ 新增的代码从这里开始 ▼▼▼
@@ -22497,7 +22563,14 @@ let meToken = accountsToken.find(a => a.id === accountId) || { bio: '' };
 let historyTextLen = textOnlyHistory.reduce((sum, m) => sum + (m.content ? m.content.length : 0), 0);
 let totalTextLength = 800 + (contactToken.bio.length || 0) + (meToken.bio.length || 0) + memText.length + cmdText.length + historyTextLen;
 
-let estimatedTokens = Math.floor(totalTextLength * 1.2) + (imgCount * 250);
+let estimatedTokens = Math.floor(totalTextLength * 1.5) + (imgCount * 250);
+
+// 👇 新增：从数据库读取刚刚存下来的【真实 Token 消耗】
+let actualUsage = await getDB('last_actual_tokens_' + accountId + '_' + npcId, { total: 0, prompt: 0 });
+let actualDisplay = actualUsage.total > 0 
+    ? `<span style="color:var(--color-pink); font-size:18px; font-weight:900; font-family:monospace;">${actualUsage.total}</span> <span style="font-size:10px; opacity:0.6; font-weight:bold;">(其中提问消耗 ${actualUsage.prompt})</span>` 
+    : '<span style="opacity:0.5; font-size:12px; font-weight:bold;">发句消息后刷新显示</span>';
+// 👆 新增结束
 
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
@@ -22568,15 +22641,22 @@ overlay.innerHTML = `
     <div style="background:var(--neo-bg); border:2px solid var(--line-color); padding:16px; border-radius:16px; box-shadow: 4px 4px 0 var(--line-color);">
         <div style="font-size:15px; font-weight:900; margin-bottom:12px;">模型记忆与推演设置</div>
         
-        <!-- 👇 新增的 Token 预估面板 👇 -->
-        <div style="background:var(--bg-color); border:2px dashed var(--color-blue); padding:10px 12px; border-radius:12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
-            <div>
-                <div style="font-size:13px; font-weight:900; color:var(--text-main);">预估上下文消耗</div>
-                <div style="font-size:10px; font-weight:bold; opacity:0.6; margin-top:2px;">综合人设、记忆与聊天记录计算</div>
+        <!-- 👇 完美防挤压的赛博账单式 Token 面板 👇 -->
+        <div style="background:var(--bg-color); border:2px dashed var(--color-blue); padding:12px 14px; border-radius:12px; margin-bottom:16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <div>
+                    <div style="font-size:13px; font-weight:900; color:var(--text-main);">预估上下文长度</div>
+                    <div style="font-size:10px; font-weight:bold; opacity:0.6; margin-top:2px;">基于设定的粗略计算</div>
+                </div>
+                <div style="font-size:18px; font-weight:900; color:var(--color-blue); font-family:monospace;">${estimatedTokens} <span style="font-size:10px;">Tokens</span></div>
             </div>
-            <div style="font-size:16px; font-weight:900; color:var(--color-blue);">${estimatedTokens} <span style="font-size:10px;">Tokens</span></div>
+            
+            <div style="background:var(--neo-bg); border-radius:8px; padding:12px; display:flex; flex-direction:column; gap:6px; box-shadow:inset 2px 2px 0 rgba(0,0,0,0.03); border:1px solid rgba(0,0,0,0.05);">
+                <div style="font-size:11px; font-weight:900; opacity:0.6;">上次真实请求消耗 (精准入账)</div>
+                <div>${actualDisplay}</div>
+            </div>
         </div>
-        <!-- 👆 新增结束 👆 -->
+        <!-- 👆 面板升级结束 👆 -->
         
         <div class="form-group" style="margin-bottom:12px;">
             <label>读取上下文条数限制 (最近的N条)</label>
@@ -24183,7 +24263,7 @@ window.saveCybNudgeSettings = async function(accountId) {
 };
 
 // --- 实际触发戳一戳的逻辑 (双击头像调用) ---
-window.executeCybNudge = async function(accountId, npcId) {
+window.executeCybNudge = async function(accountId, npcId, targetName = null) {
     let settings = await getDB('cyb_nudge_settings', {});
     let mySet = settings[accountId] || { prefix: '我', action: '戳了戳', suffix: '他的裤裆' };
     
@@ -24191,8 +24271,27 @@ window.executeCybNudge = async function(accountId, npcId) {
     let actionList = mySet.action.split(/[,，|]/).filter(Boolean);
     let actionStr = actionList.length > 0 ? actionList[Math.floor(Math.random() * actionList.length)] : '';
     
-    // 拼接成最终的话，例如：我 + 戳了戳 + 他的裤裆
-    let finalContent = mySet.prefix + actionStr + mySet.suffix;
+    // 自动拉取单聊对方名字
+    if (!targetName) {
+        let contactsDb = await getDB('cyb_contacts', {});
+        let contact = (contactsDb[accountId] ||[]).find(c => c.id === npcId);
+        if (contact && !contact.isGroup) {
+            targetName = contact.remark || contact.name;
+        }
+    }
+
+    // 智能处理群聊与单聊中的人名
+    let suffixStr = mySet.suffix;
+    if (targetName) {
+        if (/^(他|她|它|ta|Ta|TA)/i.test(suffixStr)) {
+            suffixStr = suffixStr.replace(/^(他|她|它|ta|Ta|TA)/i, targetName);
+        } else {
+            suffixStr = targetName + (suffixStr ? "的" + suffixStr : "");
+        }
+    }
+    
+    // 拼接成最终的话
+    let finalContent = mySet.prefix + actionStr + suffixStr;
     let tagContent = '[戳一戳] ' + finalContent;
     
     let chatsDb = await getDB('cyb_chats', {});
@@ -24265,25 +24364,50 @@ window.confirmEditCybContactName = async function(accountId, npcId) {
     document.querySelector('#newRemarkInput').closest('.modal-overlay').remove();
     
     let contactsDb = await getDB('cyb_contacts', {});
-    let contactList = contactsDb[accountId] || [];
+    let contactList = contactsDb[accountId] ||[];
     let index = contactList.findIndex(c => c.id === npcId);
+    
     if (index > -1) {
         contactList[index].remark = newRemark.trim();
         await setDB('cyb_contacts', contactsDb);
         
         const displayName = newRemark.trim() ? newRemark.trim() : contactList[index].name;
+        const initialChar = displayName.charAt(0);
 
-        // 原地无闪烁刷新卡片上的名字和头像（不删除节点，直接改字）
+        // 1. 无闪烁刷新个人资料卡上的名字和头像（单聊）
         const profileModal = document.getElementById('cybContactProfileModal');
         if (profileModal) {
             const nameEl = profileModal.querySelector('div[style*="font-size: 22px;"]');
             if (nameEl) nameEl.innerText = displayName;
             
             const avatarEl = profileModal.querySelector('div[style*="font-size: 32px;"]');
-            if (avatarEl && !contactList[index].avatarImg) avatarEl.innerText = displayName.charAt(0);
+            if (avatarEl && !contactList[index].avatarImg) avatarEl.innerText = initialChar;
+        }
+
+        // 2. 无闪烁刷新群聊资料卡上的名字（如果你修改的是群聊的名字）
+        const groupProfileModal = document.getElementById('cybGroupProfileModal');
+        if (groupProfileModal) {
+            const groupNameSpan = groupProfileModal.querySelector('div[onclick*="editCybContactName"] span[style*="opacity:0.6;"]');
+            if (groupNameSpan) groupNameSpan.innerText = displayName;
+        }
+
+        // 3. 无闪烁刷新背后的聊天窗口
+        const chatWindow = document.getElementById('cybChatWindowModal');
+        if (chatWindow) {
+            // 瞬间刷新顶部的名字
+            const topNameEl = chatWindow.querySelector(`div[onclick*="openCybContactProfileModal('${accountId}', '${npcId}')"]`);
+            if (topNameEl) topNameEl.innerText = displayName;
+            
+            // 瞬间刷新聊天气泡里的默认首字母（如果是单聊，且TA没有自定义头像图）
+            if (!contactList[index].isGroup && !contactList[index].avatarImg) {
+                const bubbleAvatars = chatWindow.querySelectorAll('.cyb-chat-row.npc .cyb-avatar-container > div');
+                bubbleAvatars.forEach(av => {
+                    av.innerText = initialChar;
+                });
+            }
         }
         
-        // 自动刷新底层的列表
+        // 4. 自动刷新底层主界面的通讯录/消息列表
         renderCybListContent(accountId);
     }
 };
@@ -24292,37 +24416,67 @@ window.confirmEditCybContactName = async function(accountId, npcId) {
 // 新增：群聊专用资料卡与管理功能 (踢人/拉人)
 // ===============================================
 window.openCybGroupProfileModal = async function(accountId, groupId, groupInfo, allContacts) {
+    // 数据容错补丁
+    if (!groupInfo.ownerId) groupInfo.ownerId = accountId;
+    if (!groupInfo.titles) groupInfo.titles = {};
+    if (!groupInfo.muted) groupInfo.muted = {};
+
     let membersHtml = '';
-    let aiProfiles = await getDB('ai_profiles', []);
+    let aiProfiles = await getDB('ai_profiles',[]);
+    let accounts = await getDB('cyb_accounts',[]);
+    let me = accounts.find(a => a.id === accountId) || { name: '我' };
     
-    // 渲染每一个群成员的头像
-    groupInfo.members.forEach(mId => {
-        let realId = parseInt(mId.replace('cyb_npc_', ''));
-        let profile = aiProfiles.find(p => p.id === realId);
-        let cInfo = allContacts.find(c => c.id === mId) || {};
-        let mName = cInfo.remark || cInfo.name || (profile ? profile.name : '未知');
-        let mAvatar = cInfo.avatarImg || '';
-        let mInitial = mAvatar ? '' : mName.charAt(0);
+    // 把“我(用户)”和“AI群员”合并在一起展示
+    let allMembers = [accountId, ...groupInfo.members];
+    const isMeOwner = groupInfo.ownerId === accountId;
+
+    allMembers.forEach(mId => {
+        let isUser = mId === accountId;
+        let mName = isUser ? me.name : '未知';
+        let mAvatar = isUser ? (me.avatarB64 || '') : '';
         
+        if (!isUser) {
+            let realId = parseInt(mId.replace('cyb_npc_', ''));
+            let profile = aiProfiles.find(p => p.id === realId);
+            let cInfo = allContacts.find(c => c.id === mId) || {};
+            mName = cInfo.remark || cInfo.name || (profile ? profile.name : '未知');
+            mAvatar = cInfo.avatarImg || '';
+        }
+        
+        let mInitial = mAvatar ? '' : mName.charAt(0);
+        let isOwner = groupInfo.ownerId === mId;
+        let title = groupInfo.titles[mId] || '';
+        let isMuted = groupInfo.muted[mId] > Date.now();
+        
+        // 标签：群主黄标，头衔粉标，禁言红标
+        let tagsHtml = '';
+        if (isOwner) tagsHtml += `<div style="font-size:8px; background:var(--color-yellow); color:#111; padding:1px 4px; border-radius:4px; margin-bottom:2px; font-weight:900; border:1px solid #111;">群主</div>`;
+        if (title) tagsHtml += `<div style="font-size:8px; background:var(--color-pink); color:#111; padding:1px 4px; border-radius:4px; margin-bottom:2px; font-weight:900; border:1px solid #111;">${title}</div>`;
+        if (isMuted) tagsHtml += `<div style="font-size:8px; background:#e74c3c; color:#fff; padding:1px 4px; border-radius:4px; margin-bottom:2px; font-weight:900; border:1px solid #111;">禁言中</div>`;
+
+        // 如果你是群主，点击别人可以管理；如果是AI是群主，你只能看
+        let clickAction = (isMeOwner && !isUser) ? `onclick="openGroupMemberManageModal('${accountId}', '${groupId}', '${mId}', '${mName}')"` : `onclick="uiAlert('只有群主才能管理成员哦。')";`;
+
         membersHtml += `
-            <div style="display:flex; flex-direction:column; align-items:center; width:20%; margin-bottom:10px;">
-                <div style="width:40px; height:40px; border-radius:50%; background:var(--color-pink); border:2px solid var(--line-color); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:900; background-image:url(${mAvatar}); background-size:cover; background-position:center; position:relative;">
+            <div style="display:flex; flex-direction:column; align-items:center; width:22%; margin-bottom:12px; cursor:pointer;" ${clickAction}>
+                <div style="width:44px; height:44px; border-radius:14px; background:${isUser ? 'var(--color-blue)' : 'var(--color-purple)'}; border:2.5px solid var(--line-color); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:900; font-size:16px; background-image:url(${mAvatar}); background-size:cover; background-position:center; position:relative; box-shadow: 2px 2px 0 var(--line-color);">
                     ${mInitial}
-                    <!-- 踢出群聊小红叉 -->
-                    <div onclick="kickCybGroupMember('${accountId}', '${groupId}', '${mId}')" style="position:absolute; top:-4px; right:-4px; width:16px; height:16px; background:#e74c3c; color:#fff; border-radius:50%; border:1.5px solid var(--bg-color); display:flex; align-items:center; justify-content:center; font-size:12px; cursor:pointer;">×</div>
                 </div>
-                <div style="font-size:10px; font-weight:900; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width:100%; text-align:center;">${mName}</div>
+                <div style="display:flex; flex-direction:column; align-items:center; margin-top:6px; height:36px; justify-content:flex-start;">
+                    ${tagsHtml}
+                </div>
+                <div style="font-size:11px; font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width:100%; text-align:center;">${mName}</div>
             </div>
         `;
     });
 
-    // 渲染一个拉人进群的 "+" 按钮
     membersHtml += `
-        <div style="display:flex; flex-direction:column; align-items:center; width:20%; margin-bottom:10px;" onclick="openCybAddGroupMemberModal('${accountId}', '${groupId}')">
-            <div style="width:40px; height:40px; border-radius:50%; background:var(--neo-bg); border:2px dashed var(--line-color); display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text-main);">
+        <div style="display:flex; flex-direction:column; align-items:center; width:22%; margin-bottom:12px;" onclick="openCybAddGroupMemberModal('${accountId}', '${groupId}')">
+            <div style="width:44px; height:44px; border-radius:14px; background:var(--neo-bg); border:2.5px dashed var(--line-color); display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text-main);">
                 <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2.5;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
             </div>
-            <div style="font-size:10px; font-weight:900; margin-top:4px; opacity:0.6;">邀请</div>
+            <div style="height:36px;"></div>
+            <div style="font-size:11px; font-weight:900; opacity:0.6;">邀请</div>
         </div>
     `;
 
@@ -24341,15 +24495,14 @@ window.openCybGroupProfileModal = async function(accountId, groupId, groupInfo, 
                 <div onclick="document.getElementById('cybGroupProfileModal').remove()" style="width: 40px; height: 40px; background: var(--color-yellow); border: 2.5px solid var(--line-color); border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 2px 2px 0 var(--line-color);">
                     <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:#111;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
                 </div>
-                <div style="font-size:18px; font-weight:900; color:var(--text-main);">群聊信息</div>
+                <div style="font-size:18px; font-weight:900; color:var(--text-main);">群聊设置</div>
                 <div style="width: 40px;"></div>
             </div>
 
             <div style="flex:1; overflow-y:auto; padding: 20px; display: flex; flex-direction: column; gap:16px;">
-                
                 <div style="background:var(--neo-bg); border:3px solid var(--line-color); border-radius:16px; padding:16px; box-shadow: 4px 4px 0 var(--line-color);">
-                    <div style="font-size:14px; font-weight:900; margin-bottom:16px; color:var(--text-main);">群聊成员 (${groupInfo.members.length}人)</div>
-                    <div style="display:flex; flex-wrap:wrap;">
+                    <div style="font-size:14px; font-weight:900; margin-bottom:16px; color:var(--text-main);">群聊成员 (${allMembers.length}人) ${isMeOwner ? '<span style="font-size:10px; opacity:0.6; margin-left:6px;">点击头像管理</span>' : ''}</div>
+                    <div style="display:flex; flex-wrap:wrap; justify-content:flex-start; gap: 3%;">
                         ${membersHtml}
                     </div>
                 </div>
@@ -24363,52 +24516,196 @@ window.openCybGroupProfileModal = async function(accountId, groupId, groupInfo, 
                         </div>
                     </div>
                     <div style="display:flex; justify-content:space-between; align-items:flex-start; cursor:pointer;" onclick="editCybGroupBio('${accountId}', '${groupId}')">
-    <span style="font-size:14px; font-weight:900; width:70px;">群公告</span>
-    <div style="display:flex; align-items:flex-start; gap:6px; flex:1; justify-content:flex-end;">
-        <span style="font-size:12px; font-weight:bold; opacity:0.6; text-align:right;">${groupInfo.bio}</span>
-        <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--text-main);fill:none;stroke-width:2.5;"><polyline points="9 18 15 12 9 6"></polyline></svg>
-    </div>
-</div>
+                        <span style="font-size:14px; font-weight:900; width:70px;">群公告</span>
+                        <div style="display:flex; align-items:flex-start; gap:6px; flex:1; justify-content:flex-end;">
+                            <span style="font-size:12px; font-weight:bold; opacity:0.6; text-align:right;">${groupInfo.bio}</span>
+                            <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--text-main);fill:none;stroke-width:2.5;"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="background:var(--neo-bg); border:3px solid var(--line-color); border-radius:16px; padding:16px; box-shadow: 4px 4px 0 var(--line-color); cursor:pointer;" onclick="openCybChatSettings('${accountId}', '${groupId}'); setTimeout(() => document.getElementById('cybGroupProfileModal')?.remove(), 300);">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:14px; font-weight:900;">聊天环境与后台设置</span>
+                        <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:var(--text-main);fill:none;stroke-width:2.5;"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </div>
                 </div>
 
-                <div style="background:var(--neo-bg); border:3px solid var(--line-color); border-radius:16px; padding:16px; box-shadow: 4px 4px 0 var(--line-color);">
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-        <span style="font-size:14px; font-weight:900;">消息免打扰</span>
-        <label class="switch" style="transform:scale(0.8); margin:0;">
-            <input type="checkbox">
-            <span class="slider-btn"></span>
-        </label>
-    </div>
-</div>
-
-<!-- 新增：聊天环境设置入口 -->
-<div style="background:var(--neo-bg); border:3px solid var(--line-color); border-radius:16px; padding:16px; box-shadow: 4px 4px 0 var(--line-color); cursor:pointer;" onclick="openCybChatSettings('${accountId}', '${groupId}'); setTimeout(() => document.getElementById('cybGroupProfileModal')?.remove(), 300);">
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-        <span style="font-size:14px; font-weight:900;">聊天环境设置</span>
-        <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:var(--text-main);fill:none;stroke-width:2.5;"><polyline points="9 18 15 12 9 6"></polyline></svg>
-    </div>
-</div>
-
-<button class="form-btn" style="width:100%; background:var(--color-pink); color:#fff; border-color:#e74c3c; box-shadow: 4px 4px 0 #e74c3c; margin-top:20px;" onclick="deleteCybContact('${accountId}', '${groupId}')">删除并退出</button>
+                <button class="form-btn" style="width:100%; background:var(--color-pink); color:#fff; border-color:#e74c3c; box-shadow: 4px 4px 0 #e74c3c; margin-top:10px;" onclick="deleteCybContact('${accountId}', '${groupId}')">退出群聊</button>
             </div>
         </div>
     `;
     document.body.appendChild(overlay);
 };
 
-window.kickCybGroupMember = async function(accountId, groupId, memberId) {
-    if(!confirm("确定要把该成员移出群聊吗？")) return;
+// --- 群成员管理面板 ---
+window.openGroupMemberManageModal = function(accountId, groupId, targetMemberId, targetName) {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'groupMemberManageModal';
+    overlay.style.display = 'flex';
+    overlay.style.zIndex = '9999999';
+    overlay.innerHTML = `
+        <div class="modal-content" style="max-width:320px; padding: 24px;">
+            <h3 style="text-align:center; margin-bottom: 16px;">管理成员：${targetName}</h3>
+            
+            <div style="display:flex; flex-direction:column; gap:12px;">
+                <button class="form-btn" style="background:var(--color-yellow); font-size:14px;" onclick="setGroupMemberTitle('${accountId}', '${groupId}', '${targetMemberId}', '${targetName}')">👑 赐予/修改专属头衔</button>
+                <button class="form-btn" style="background:#e74c3c; color:#fff; border-color:#a93226; font-size:14px; box-shadow: 2px 2px 0 #a93226;" onclick="muteGroupMember('${accountId}', '${groupId}', '${targetMemberId}', '${targetName}')">🚫 关进小黑屋 (禁言)</button>
+                <button class="form-btn" style="background:var(--color-blue); font-size:14px;" onclick="transferGroupOwnership('${accountId}', '${groupId}', '${targetMemberId}', '${targetName}')">🚀 将群主之位禅让给Ta</button>
+                <button class="form-btn" style="background:var(--bg-color); color:#e74c3c; border-color:#e74c3c; font-size:14px; box-shadow: 2px 2px 0 #e74c3c;" onclick="kickCybGroupMember('${accountId}', '${groupId}', '${targetMemberId}', '${targetName}')">🔪 踢出群聊</button>
+                <button class="form-btn" style="background:#555; color:#fff; margin-top:10px; font-size:14px;" onclick="document.getElementById('groupMemberManageModal').remove()">取消</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+};
+
+// 1. 设置头衔
+window.setGroupMemberTitle = async function(accountId, groupId, mId, name) {
+    let title = await uiPrompt(`你要给 ${name} 赐予什么头衔？(留空则清空)`, "");
+    if (title === null) return;
     
     let contactsDb = await getDB('cyb_contacts', {});
-    let contactList = contactsDb[accountId] || [];
-    let group = contactList.find(c => c.id === groupId);
+    let group = contactsDb[accountId].find(c => c.id === groupId);
+    if (!group.titles) group.titles = {}; 
+    group.titles[mId] = title.trim();
+    await setDB('cyb_contacts', contactsDb);
+
+    // --- 新增：写入系统提示与强制反应指令 ---
+    let accountsDb = await getDB('cyb_accounts',[]);
+    let me = accountsDb.find(a => a.id === accountId) || { name: '我' };
+    let chatsDb = await getDB('cyb_chats', {});
+    if(!chatsDb[accountId]) chatsDb[accountId] = {};
+    if(!chatsDb[accountId][groupId]) chatsDb[accountId][groupId] =[];
     
+    let actionText = title ? `群主(${me.name}) 将 ${name} 的专属头衔修改为【${title}】。` : `群主(${me.name}) 清空了 ${name} 的专属头衔。`;
+    
+    // 1. 所有人都能看见的系统播报
+    chatsDb[accountId][groupId].push({
+        id: Date.now() + '_sys_title', 
+        role: 'npc', 
+        content: `[系统提示] ${actionText}`, 
+        timestamp: Date.now()
+    });
+    
+    // 2. 隐藏的用户指令，用来踹AI一脚，触发它立马回复
+    chatsDb[accountId][groupId].push({
+        id: Date.now() + '_sys_trigger',
+        role: 'user',
+        content: `【系统强制指令：我(群主)刚修改了你的头衔（见上一条提示）。看到这个头衔，请结合你的人设立刻在群里做出反应（吐槽、抗议、撒娇、得意等都可以）！】`,
+        timestamp: Date.now() + 1,
+        isHidden: true,
+        failed: false
+    });
+    
+    await setDB('cyb_chats', chatsDb);
+    // ----------------------------------------
+
+    document.getElementById('groupMemberManageModal').remove();
+    document.getElementById('cybGroupProfileModal').remove();
+    openCybGroupProfileModal(accountId, groupId, group, contactsDb[accountId]);
+
+    // 新增：如果聊天窗正开着，立刻无缝刷新播报，并让AI回复！
+    const msgArea = document.getElementById('cybChatMsgsArea');
+    if (msgArea && window.currentCybChatKey === accountId + '_' + groupId) {
+        msgArea.insertAdjacentHTML('beforeend', `<div style="text-align:center; padding: 10px 0; margin-bottom: 12px;"><span style="font-size:11px; font-weight:900; opacity:0.6; background:var(--neo-bg); border: 2px solid var(--line-color); padding:6px 14px; border-radius:12px; box-shadow: 2px 2px 0 var(--line-color); color:var(--text-main); display:inline-block; max-width:85%; line-height:1.5;">${actionText}</span></div>`);
+        msgArea.scrollTop = msgArea.scrollHeight;
+        // 已经取消了自动回复，现在需要你手动点击粉色的接收键，AI才会回复
+    }
+};
+
+// 2. 禁言
+window.muteGroupMember = async function(accountId, groupId, mId, name) {
+    let mins = await uiPrompt(`你要禁言 ${name} 多少分钟？(填0解除禁言)`, "10");
+    if (mins === null || isNaN(parseInt(mins))) return;
+    
+    let timeMs = parseInt(mins) * 60 * 1000;
+    
+    let contactsDb = await getDB('cyb_contacts', {});
+    let group = contactsDb[accountId].find(c => c.id === groupId);
+    if (!group.muted) group.muted = {}; 
+    
+    let actionText = "";
+    if (timeMs <= 0) {
+        group.muted[mId] = 0;
+        actionText = `群主解除了对 ${name} 的禁言。`;
+    } else {
+        group.muted[mId] = Date.now() + timeMs;
+        actionText = `群主将 ${name} 禁言了 ${mins} 分钟！`;
+    }
+    
+    await setDB('cyb_contacts', contactsDb);
+
+    // --- 新增：写入系统提示 ---
+    let chatsDb = await getDB('cyb_chats', {});
+    if(!chatsDb[accountId]) chatsDb[accountId] = {};
+    if(!chatsDb[accountId][groupId]) chatsDb[accountId][groupId] =[];
+    
+    chatsDb[accountId][groupId].push({
+        id: Date.now() + '_sys_mute', 
+        role: 'npc', 
+        content: `[系统提示] ${actionText}`, 
+        timestamp: Date.now()
+    });
+    await setDB('cyb_chats', chatsDb);
+    
+    document.getElementById('groupMemberManageModal').remove();
+    document.getElementById('cybGroupProfileModal').remove();
+    openCybGroupProfileModal(accountId, groupId, group, contactsDb[accountId]);
+
+    // 实时刷新聊天窗
+    const msgArea = document.getElementById('cybChatMsgsArea');
+    if (msgArea && window.currentCybChatKey === accountId + '_' + groupId) {
+        msgArea.insertAdjacentHTML('beforeend', `<div style="text-align:center; padding: 10px 0; margin-bottom: 12px;"><span style="font-size:11px; font-weight:900; opacity:0.6; background:var(--neo-bg); border: 2px solid var(--line-color); padding:6px 14px; border-radius:12px; box-shadow: 2px 2px 0 var(--line-color); color:var(--text-main); display:inline-block; max-width:85%; line-height:1.5;">${actionText}</span></div>`);
+        msgArea.scrollTop = msgArea.scrollHeight;
+    }
+};
+
+// 3. 转让群主
+window.transferGroupOwnership = async function(accountId, groupId, mId, name) {
+    if (!await uiConfirm(`⚠️ 警告：一旦将群主禅让给【${name}】，你将失去管理权限，且TA会获得自由踢人、禁言、发头衔的权力！确定要退位吗？`)) return;
+    
+    let contactsDb = await getDB('cyb_contacts', {});
+    let group = contactsDb[accountId].find(c => c.id === groupId);
+    group.ownerId = mId; // 权杖交接！
+    await setDB('cyb_contacts', contactsDb);
+    
+    // 发一条系统消息通知全群
+    let chatsDb = await getDB('cyb_chats', {});
+    chatsDb[accountId][groupId].push({
+        id: Date.now() + '_sys',
+        role: 'npc',
+        content: `[系统提示] 群主已将管理权禅让给了 ${name}！现在 ${name} 掌握了生杀大权！`,
+        timestamp: Date.now()
+    });
+    await setDB('cyb_chats', chatsDb);
+    
+    document.getElementById('groupMemberManageModal').remove();
+    document.getElementById('cybGroupProfileModal').remove();
+    openCybGroupProfileModal(accountId, groupId, group, contactsDb[accountId]);
+    uiAlert("权杖已移交，你现在只是个普通群员了。自求多福吧。");
+};
+
+// 4. 踢人
+window.kickCybGroupMember = async function(accountId, groupId, memberId, name) {
+    if(!confirm(`确定要把 ${name} 移出群聊吗？`)) return;
+    
+    let contactsDb = await getDB('cyb_contacts', {});
+    let group = contactsDb[accountId].find(c => c.id === groupId);
     if (group) {
         group.members = group.members.filter(m => m !== memberId);
         await setDB('cyb_contacts', contactsDb);
         
+        let chatsDb = await getDB('cyb_chats', {});
+        chatsDb[accountId][groupId].push({
+            id: Date.now() + '_sys', role: 'npc', content: `[系统提示] ${name} 已被群主移出群聊。`, timestamp: Date.now()
+        });
+        await setDB('cyb_chats', chatsDb);
+
+        document.getElementById('groupMemberManageModal').remove();
         document.getElementById('cybGroupProfileModal').remove();
-        openCybGroupProfileModal(accountId, groupId, group, contactList);
+        openCybGroupProfileModal(accountId, groupId, group, contactsDb[accountId]);
     }
 };
 
@@ -24567,6 +24864,16 @@ window.openCybContactProfileModal = async function(accountId, npcId) {
     const displayId = npcId.replace(/[^0-9]/g, '').slice(-6) || Math.floor(Math.random()*900000+100000);
     const nameHtml = contact.remark ? contact.remark : contact.name;
 
+    // --- 新增：原生 AI 专属换头像逻辑 ---
+    let isNativeAi = npcId === 'cyb_npc_native_ai';
+    let avatarClickAction = isNativeAi ? `onclick="document.getElementById('nativeAiAvatarUpload').click()"` : '';
+    let cameraIconHtml = isNativeAi ? `
+        <div style="position:absolute; bottom:-6px; right:-6px; width:26px; height:26px; background:var(--color-yellow); border:2.5px solid var(--line-color); border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:2px 2px 0 var(--line-color); cursor:pointer; color:#111;">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+        </div>
+    ` : '';
+    let uploadInputHtml = isNativeAi ? `<input type="file" id="nativeAiAvatarUpload" style="display:none;" accept="image/*" onchange="handleNativeAiAvatarUpload(event, '${accountId}', '${npcId}')">` : '';
+
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.id = 'cybContactProfileModal';
@@ -24602,8 +24909,9 @@ window.openCybContactProfileModal = async function(accountId, npcId) {
                         ${dotOverlay}
                         <div style="position:absolute; top: calc(20px + env(safe-area-inset-top)); left: 20px; font-family: monospace; font-size: 14px; font-weight: 900; color: var(--text-main); background: var(--neo-bg); padding: 6px 14px; border-radius: 8px; border: 2.5px solid var(--line-color); z-index:2;">ID: ${displayId}</div>
                     </div>
-                    <div style="width: 80px; height: 80px; border-radius: 20px; border: 3px solid var(--line-color); background-color: var(--color-pink); position: absolute; top: 80px; left: 24px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 900; color: #111; background-position:center; background-size:cover; ${avStyle} z-index:3;">
+                    <div style="width: 80px; height: 80px; border-radius: 20px; border: 3px solid var(--line-color); background-color: var(--color-pink); position: absolute; top: 80px; left: 24px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 900; color: #111; background-position:center; background-size:cover; ${avStyle} z-index:3; ${isNativeAi ? 'cursor:pointer;' : ''}" ${avatarClickAction}>
                         ${contact.avatarImg ? '' : contact.name.charAt(0)}
+                        ${cameraIconHtml}
                     </div>
                     <div style="padding: 50px 24px 30px; display: flex; flex-direction: column; background: var(--neo-bg); border-bottom-left-radius: 17px; border-bottom-right-radius: 17px;">
                         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
@@ -24627,8 +24935,9 @@ window.openCybContactProfileModal = async function(accountId, npcId) {
             <div style="flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding-bottom: 20px;">
                 <div style="${headerBgStyle} height: 180px; border-bottom: 3px solid var(--line-color); border-radius: 0 0 24px 24px; position:relative;">
                     ${dotOverlay}
-                    <div style="position:absolute; bottom:-45px; left:50%; transform:translateX(-50%); width:90px; height:90px; border-radius:24px; border: 3px solid var(--line-color); background-color: var(--color-pink); display:flex; align-items:center; justify-content:center; font-size:32px; font-weight:900; color: #111; background-position:center; background-size:cover; ${avStyle} z-index:3; box-shadow: 0 4px 0 rgba(0,0,0,0.1);">
+                    <div style="position:absolute; bottom:-45px; left:50%; transform:translateX(-50%); width:90px; height:90px; border-radius:24px; border: 3px solid var(--line-color); background-color: var(--color-pink); display:flex; align-items:center; justify-content:center; font-size:32px; font-weight:900; color: #111; background-position:center; background-size:cover; ${avStyle} z-index:3; box-shadow: 0 4px 0 rgba(0,0,0,0.1); ${isNativeAi ? 'cursor:pointer;' : ''}" ${avatarClickAction}>
                         ${contact.avatarImg ? '' : contact.name.charAt(0)}
+                        ${cameraIconHtml}
                     </div>
                 </div>
                 
@@ -24675,10 +24984,59 @@ window.openCybContactProfileModal = async function(accountId, npcId) {
             
             <!-- 下方动态内容区 -->
             ${contentHtml}
+            ${uploadInputHtml}
         </div>
     `;
     
     document.body.appendChild(overlay);
+};
+
+// --- 原生 AI 专属换头像处理函数 (无闪烁版) ---
+window.handleNativeAiAvatarUpload = async function(e, accountId, npcId) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    // 调用内置的高级画布系统，自动压缩并读取图片
+    const b64 = await fileToBase64(file);
+    let contactsDb = await getDB('cyb_contacts', {});
+    let contactList = contactsDb[accountId] ||[];
+    const idx = contactList.findIndex(c => c.id === npcId);
+    
+    if (idx > -1) {
+        contactList[idx].avatarImg = b64;
+        await setDB('cyb_contacts', contactsDb);
+        
+        // 1. 无闪烁更新：直接找到当前打开的资料卡里的头像节点，原地注入新背景图
+        const profileModal = document.getElementById('cybContactProfileModal');
+        if (profileModal) {
+            // 精准捕捉包含相机点击事件的头像框
+            const avatarEl = profileModal.querySelector('div[onclick*="nativeAiAvatarUpload"]');
+            if (avatarEl) {
+                avatarEl.style.backgroundImage = `url(${b64})`;
+                avatarEl.style.color = 'transparent'; // 把原来的首字母文字变成透明隐藏掉
+            }
+        }
+        
+        // 2. 无闪烁更新底层的聊天窗口（如果此时它正开着在后面）
+        const chatWindow = document.getElementById('cybChatWindowModal');
+        if (chatWindow) {
+            // 瞬间替换顶部 Header 头像
+            const topAvatar = chatWindow.querySelector('.cyb-header .x-profile-avatar');
+            if (topAvatar) { 
+                topAvatar.style.backgroundImage = `url(${b64})`; 
+                topAvatar.innerText = ''; 
+            }
+            // 瞬间替换聊天列表里所有的气泡头像
+            const bubbleAvatars = chatWindow.querySelectorAll('.cyb-chat-row.npc .cyb-avatar-container > div');
+            bubbleAvatars.forEach(av => { 
+                av.style.backgroundImage = `url(${b64})`; 
+                av.innerText = ''; 
+            });
+        } else {
+            // 如果聊天窗没开，只开着联系人列表，那直接在底层静默刷新联系人列表即可
+            renderCybListContent(accountId);
+        }
+    }
 };
 // ===================================================
 // 终端功能：匿名探测系统 (面板记录版)
@@ -26122,7 +26480,11 @@ window.submitCybCreateGroup = async function(accountId) {
         avatarImg: window.tempCybGroupAvatar || '',
         isGroup: true,
         members: memberIds,
-        bio: '一个热闹的群聊。'
+        bio: '一个热闹的群聊。',
+        // 👇这是新加的字段
+        ownerId: accountId, // 默认创建者是群主
+        titles: {},         // 存放群头衔
+        muted: {}           // 存放禁言到期时间戳
     });
 
     await setDB('cyb_contacts', contactsDb);
@@ -26131,7 +26493,7 @@ window.submitCybCreateGroup = async function(accountId) {
     if(!chatsDb[accountId]) chatsDb[accountId] = {};
     chatsDb[accountId][groupId] = [{
         role: 'npc',
-        content: '[系统提示] 你创建了群聊并邀请了他们。',
+        content: '[系统提示] 你创建了群聊并邀请了TA们。',
         timestamp: Date.now()
     }];
     await setDB('cyb_chats', chatsDb);
@@ -26215,6 +26577,50 @@ window.receiveCybGroupChatMsg = async function(accountId, groupId, groupInfo, my
     let timePhase = hour < 6 ? '凌晨' : (hour < 9 ? '早晨' : (hour < 12 ? '上午' : (hour < 14 ? '中午' : (hour < 18 ? '下午' : (hour < 22 ? '晚上' : '深夜')))));
     let currentTimeStr = `\n【当前现实时间】：${nowD.getFullYear()}年${nowD.getMonth()+1}月${nowD.getDate()}日 星期${weekDays[nowD.getDay()]} ${String(hour).padStart(2,'0')}:${String(nowD.getMinutes()).padStart(2,'0')} (${timePhase})。`;
 
+// 👇 新增：AI 群主特权与禁言状态感知
+    let aiMgmtPrompt = "";
+    if (!groupInfo.muted) groupInfo.muted = {};
+    if (!groupInfo.titles) groupInfo.titles = {};
+    
+// 告诉 AI 谁被禁言了
+    let mutedIds =[]; // 记录被禁言的ID，用于底层物理拦截
+    let mutedList =[];
+    Object.keys(groupInfo.muted).forEach(mId => {
+        if (groupInfo.muted[mId] > Date.now()) {
+            let mName = mId === accountId ? me.name : (memberDetails.find(x => x.id === mId)?.name || '某人');
+            mutedList.push(mName);
+            mutedIds.push(mId);
+        }
+    });
+    if (mutedList.length > 0) {
+        aiMgmtPrompt += `\n【当前群内被禁言人员】：${mutedList.join('、')}。他们已经被捂住嘴巴，【绝对禁止】输出任何关于这些人的对话气泡！把他们当空气！\n`;
+    }
+
+    // 告诉 AI 头衔信息
+    let titlesList =[];
+    Object.keys(groupInfo.titles).forEach(mId => {
+        let mName = mId === accountId ? me.name : (memberDetails.find(x => x.id === mId)?.name || '某人');
+        titlesList.push(`${mName}(头衔:${groupInfo.titles[mId]})`);
+    });
+if (titlesList.length > 0) {
+        aiMgmtPrompt += `【群员专属头衔(由群主赐予)】：${titlesList.join('，')}。\n(注意：这不是你的强制身份设定，而是群主给你起的“外号”。如果群主刚给你改了头衔，你可以自然地吐槽、抗议、撒娇或得意，必须遵守人物性格设定！)\n`;
+    }
+
+    // 告诉 AI 谁是群主，如果是某个 AI 当群主，赋予它极权指令
+    let ownerName = groupInfo.ownerId === accountId ? me.name : (memberDetails.find(x => x.id === groupInfo.ownerId)?.name || '未知');
+    aiMgmtPrompt += `\n【群主特权】：本群目前的群主是：${ownerName}。\n`;
+    
+    // 如果 AI 群主在这次推演的成员列表里，赋予最高权限！
+    if (memberDetails.find(x => x.id === groupInfo.ownerId)) {
+        aiMgmtPrompt += `⚠️⚠️⚠️【最高系统权限：致 ${ownerName} 的专属指令】：
+你现在是这个群的【至高群主】！
+如果你觉得某个群员（包括用户 ${me.name} 或者其他 AI 角色）太吵、冒犯了你，或者你只是想发脾气，你有权把 Ta 关进小黑屋！
+操作方法：在你发言的那个气泡最后单起一行输出：[[MUTE:目标名字:禁言分钟数]] (例如：[[MUTE:${me.name}:10]])。
+如果你心情好，想给某人发专属头衔（称号），输出格式：[[TITLE:目标名字:头衔名称]] (例如：[[TITLE:${me.name}:逆子]])。
+请尽情滥用你的群主特权，展现你的霸道！\n`;
+    }
+    // 👆 新增结束
+    
     let walkXChats = await getDB('walk_x_chats', {});
 let xMemoryPrompt = "";
 memberDetails.forEach(m => {
@@ -26238,8 +26644,9 @@ memberDetails.forEach(m => {
         try {
         // === 1. 完美复刻单聊的高级 Prompt，并适配群聊多角色机制 ===
         const prompt = `${beforeCmds ? '【前置全局设定与挂载指令】：\n' + beforeCmds + '\n\n' : ''}你是一个赛博通讯终端的多角色群聊推演引擎。
-${currentTimeStr}
 
+${currentTimeStr}
+${aiMgmtPrompt}
 【群聊名称】：${groupInfo.name}
 【群内有以下角色(NPC)】：
 ${memberDetails.map(m => `- ID: ${m.id} | 名字: ${m.name} | 设定: ${m.bio}`).join('\n')}
@@ -26252,8 +26659,9 @@ ${specificUser ? `【极其重要：用户的真实私密设定/方案】：用�
 【活人感与多维思考强制设定】：
 1. 群里的每个人都是有独立生活、情绪波动和内心潜台词的真实人类，而不是只会顺从的AI。
 2. 应对反应多样化与“不完美感”：可以顺着她的话说，可以故意曲解反问，可以互相拌嘴吵架甚至争风吃醋。偶尔表现出人类的“非理性”：比如突然的占有欲、莫名其妙的胜负欲、或者累了时只回复简短的字眼（如“嗯”、“行吧”）。
-3. 极致还原真实打字习惯：允许打错字。多用真实的语气词（如“啊、嘛、呢、呗、嘶”），且要符合人物性格。如果情绪激动，同一个人完全可以连发多条短消息（分成多个气泡）。
+3. 极致还原真实打字习惯：允许打错字。允许用真实的语气词（如“啊、嘛、呢、呗、嘶”），且要符合人物性格。如果情绪激动，同一个人完全可以连发多条短消息（分成多个气泡）。
 4. 日常感与对话留白：不要每次都完美接梗或回答所有问题，群聊里经常会漏看消息、选择性无视某人、各聊各的、互相插嘴，或者突然插入一个新话题。
+5. 必须遵守人物性格，作出适当反应，禁止过度。
 
 【场景强制设定】：
 你们目前纯粹是在【网络上使用手机打字聊天】，绝对没有面对面，绝对不在同一个物理空间！因此【绝对禁止】写出跨越网线的实际肢体动作描写！如需表达接触的欲望，必须使用假设语气！严禁任何动作描写或括弧动作。
@@ -26316,6 +26724,56 @@ ${enableTrans ? `- 如果角色设定使用外语或方言，必须在名字下�
     // 补名单聊的特殊卡片转换逻辑
 raw = raw.replace(/\[\[REDPACKET:([\d\.]+):(.*?)]]/g, '[红包] $1\n$2');
 raw = raw.replace(/\[\[LOCATION:(.*?)]]/g, '[定位] $1');
+let allMemsForAi =[{id: accountId, name: me.name}, ...memberDetails]; // 用于靠名字找ID
+
+// 拦截禁言指令
+let muteMatch = raw.match(/\[\[MUTE:(.*?):(\d+)\]\]/);
+if (muteMatch) {
+    let tName = muteMatch[1].trim();
+    let tMins = parseInt(muteMatch[2]);
+    let target = allMemsForAi.find(m => m.name === tName);
+    if (target) {
+        let contactsDbForAction = await getDB('cyb_contacts', {});
+        let groupForAction = contactsDbForAction[accountId].find(c => c.id === groupId);
+        if (!groupForAction.muted) groupForAction.muted = {}; // <--- 补上这行容错代码
+        groupForAction.muted[target.id] = Date.now() + tMins * 60 * 1000;
+        await setDB('cyb_contacts', contactsDbForAction);
+        
+        // 生成一条系统播报在聊天里
+        chatsDb = await getDB('cyb_chats', {});
+        chatsDb[accountId][groupId].push({
+            id: Date.now() + '_sys_mute', role: 'npc', 
+            content: `[系统提示] 群主大发雷霆，将 ${tName} 关进了小黑屋，禁言 ${tMins} 分钟！`, 
+            timestamp: Date.now()
+        });
+        await setDB('cyb_chats', chatsDb);
+    }
+    raw = raw.replace(/\[\[MUTE:.*?:\d+\]\]/g, '').trim();
+}
+
+// 拦截发头衔指令
+let titleMatch = raw.match(/\[\[TITLE:(.*?):(.*?)]]/);
+if (titleMatch) {
+    let tName = titleMatch[1].trim();
+    let tTitle = titleMatch[2].trim();
+    let target = allMemsForAi.find(m => m.name === tName);
+    if (target) {
+        let contactsDbForAction = await getDB('cyb_contacts', {});
+        let groupForAction = contactsDbForAction[accountId].find(c => c.id === groupId);
+        if (!groupForAction.titles) groupForAction.titles = {}; // <--- 补上这行容错代码
+        groupForAction.titles[target.id] = tTitle;
+        await setDB('cyb_contacts', contactsDbForAction);
+        
+        chatsDb = await getDB('cyb_chats', {});
+        chatsDb[accountId][groupId].push({
+            id: Date.now() + '_sys_title', role: 'npc', 
+            content: `[系统提示] 群主任命 ${tName} 为【${tTitle}】。`, 
+            timestamp: Date.now()
+        });
+        await setDB('cyb_chats', chatsDb);
+    }
+    raw = raw.replace(/\[\[TITLE:.*?:.*?]]/g, '').trim();
+}
 raw = raw.replace(/\[\[STICKER:(.*?):(http.*?)]]/g, '[表情包] $1\n$2');
 
 // 容错：智能提取群成员名字，精准切开气泡
@@ -26384,11 +26842,14 @@ blocks.forEach(block => {
             }
         }
 
-        replies.push({
-            speakerId: currentSpeakerId,
-            speakerName: currentSpeakerName,
-            content: finalContent
-        });
+        // --- 终极系统拦截：如果发言人的 ID 在禁言名单里，它的气泡直接被系统吞噬！---
+        if (!mutedIds.includes(currentSpeakerId)) {
+            replies.push({
+                speakerId: currentSpeakerId,
+                speakerName: currentSpeakerName,
+                content: finalContent
+            });
+        }
     });
 }
 
@@ -26424,10 +26885,14 @@ blocks.forEach(block => {
                 let memAvStyle = mInfo && mInfo.avatarImg ? `background-image:url(${mInfo.avatarImg}); color:transparent; background-size:cover;` : '';
                 
                 let finalNpcAvatarDiv = `
-                <div class="cyb-avatar-container" style="cursor: pointer;">
+                <div class="cyb-avatar-container" ondblclick="executeCybNudge('${accountId}', '${groupId}', '${memName}')" style="cursor: pointer;">
                     <div style="width:100%; height:100%; border-radius:12px; border:2px solid var(--line-color); ${memAvStyle} background-color:var(--color-pink); display:flex; align-items:center; justify-content:center; font-weight:900; font-size:14px; background-position:center; background-size:cover; pointer-events:none;">${memInitial}</div>
                 </div>`;
-                let senderNameTip = `<div style="font-size:11px; font-weight:900; color:var(--color-pink); margin-bottom:4px; margin-left: 54px;">${memName}</div>`;
+                let titleStr = '';
+                if (groupInfo.titles && groupInfo.titles[reply.speakerId]) {
+                    titleStr = `<span style="background:var(--color-pink); color:#111; padding:2px 6px; border-radius:4px; font-size:9px; border:1px solid #111; margin-right:4px;">${groupInfo.titles[reply.speakerId]}</span>`;
+                }
+                let senderNameTip = `<div style="font-size:11px; font-weight:900; color:var(--color-pink); margin-bottom:4px; margin-left: 54px; display:flex; align-items:center;">${titleStr}${memName}</div>`;
 
                 let rowHtml = `
                 ${senderNameTip}
