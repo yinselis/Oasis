@@ -26709,15 +26709,30 @@ ${enableTrans ? `- 如果角色设定使用外语或方言，必须在名字下�
 [${ex1.name}]
 [戳一戳] 我+动词+你的部位。
 
-绝对不要输出 Markdown 代码块。${afterCmds ? '\n\n【后置规则与强制挂载指令】：\n' + afterCmds : ''}` + (typeof NS_FW_PROMPT !== 'undefined' ? NS_FW_PROMPT : '');
+绝对不要输出 Markdown 代码块。${afterCmds ? '\n\n【后置规则与强制挂载指令】：\n' + afterCmds : ''}`;
 
         let messages = [{ role: 'system', content: prompt }];
-        chatList.slice(-limit).forEach(msg => {
-            let prefix = msg.role === 'user' ? '用户:' : (msg.speakerName ? `${msg.speakerName}:` : '系统:');
-            let md = new Date(msg.timestamp);
-            let timeStr = `${md.getMonth()+1}月${md.getDate()}日 ${String(md.getHours()).padStart(2,'0')}:${String(md.getMinutes()).padStart(2,'0')}`;
-            messages.push({ role: msg.role === 'user' ? 'user' : 'assistant', content: `[${timeStr}] ` + prefix + ' ' + msg.content });
+chatList.slice(-limit).forEach((msg, idx) => {
+    let prefix = msg.role === 'user' ? '用户:' : (msg.speakerName ? `${msg.speakerName}:` : '系统:');
+    let md = new Date(msg.timestamp);
+    let timeStr = `${md.getMonth()+1}月${md.getDate()}日 ${String(md.getHours()).padStart(2,'0')}:${String(md.getMinutes()).padStart(2,'0')}`;
+    
+    // 修复：提取群聊记录中最近3条带图片的数据发给大模型
+    if (msg.imageBase64 && (idx >= chatList.slice(-limit).length - 3)) {
+        messages.push({ 
+            role: msg.role === 'user' ? 'user' : 'assistant', 
+            content: [
+                { type: "text", text: `[${timeStr}] ` + prefix + ' ' + msg.content }, 
+                { type: "image_url", image_url: { url: msg.imageBase64 } }
+            ] 
         });
+    } else {
+        messages.push({ 
+            role: msg.role === 'user' ? 'user' : 'assistant', 
+            content: `[${timeStr}] ` + prefix + ' ' + msg.content 
+        });
+    }
+});
 
         // 取 ai 温度设置
         const aiTemp = await getDB('aiTemperature', 0.8);
