@@ -22035,14 +22035,14 @@ let allSettings = await getDB('cyb_chat_settings', {});
     }
     
     let stickersDB = await getDB('cyb_stickers', []);
-    let allowedStickers = stickersDB.filter(c => c.aiCanUse);
-    let stickerPrompt = "";
-    if (allowedStickers.length > 0) {
-        stickerPrompt = `\n【表情包权限】：你可以发送表情包！使用隐藏标记 [[STICKER:表情包名字:图片URL]]。表情包库：\n`;
-        allowedStickers.forEach(cat => {
-            stickerPrompt += `[分类：${cat.category}] ` + cat.items.map(s => `${s.name}(${s.url})`).join(', ') + "\n";
-        });
-    }
+let allowedStickers = stickersDB.filter(c => c.allowedChats ? (c.allowedChats.includes(accountId + '_' + npcId) || c.allowedChats.includes('ALL_MIGRATED')) : c.aiCanUse);
+let stickerPrompt = "";
+if (allowedStickers.length > 0) {
+    stickerPrompt = `\n【表情包权限】：群成员可以发送表情包！必须使用隐藏标记 [[STICKER:表情包名字:图片URL]] 单独占一个气泡。表情包库如下（必须精准复制对应的URL）：\n`;
+    allowedStickers.forEach(cat => {
+        stickerPrompt += `[分类：${cat.category}] ` + cat.items.map(s => `${s.name}(${s.url})`).join(', ') + "\n";
+    });
+}
 
     let replyList = ["……"];
 
@@ -26142,10 +26142,37 @@ if (chatSettings.selectedUserProfile) {
     }
 }
 
-// 把记录里的"用户"直接替换成真实昵称/网名
-let chatText = msgsToSummarize.map(m => `${m.role === 'user' ? realName : '我'}: ${m.content}`).join('\n');
+// --- 判断是否是群聊 ---
+let contactsDbSum = await getDB('cyb_contacts', {});
+let contactSum = (contactsDbSum[accountId] || []).find(c => c.id === npcId);
+let isGroupSum = contactSum && contactSum.isGroup;
 
-        const prompt = `你是一个无感情的客观记忆提取模块。请根据以下对话记录，撰写一份客观的剧情摘要。
+let chatText = '';
+let prompt = '';
+
+if (isGroupSum) {
+    // 群聊：使用真实名字拼接，不用“我”
+    chatText = msgsToSummarize.map(m => {
+        let sender = m.role === 'user' ? realName : (m.speakerName || contactSum.name || '未知');
+        return `${sender}: ${m.content}`;
+    }).join('\n');
+
+    prompt = `你是一个无感情的客观记忆提取模块。请根据以下群聊记录，撰写一份客观的剧情摘要。
+【核心要求】：
+1. 格式纯净：直接输出正文段落。绝对禁止输出“记录对象”、“标题”或列点。
+2. 视角与称呼：请以【第三人称旁观者（上帝视角）】进行记录！指代任何人时，必须全程使用他们的真实名字叙述！绝对禁止使用“我”、“用户”、“他”、“她”等代词导致混淆！
+3. 绝对客观：只记录发生了什么事、群员们表达了什么、重要约定。剥离一切情绪描写或小说式修辞。
+4. 必须准确提取出【${realName}】及其他群成员的关键信息点。
+5. 严格控制在 350 字以内。
+
+附加自定义提取侧重点：${memSettings.customPrompt || '无'}
+以下是近期对话记录：
+${chatText}`;
+} else {
+    // 单聊：保持第一人称
+    chatText = msgsToSummarize.map(m => `${m.role === 'user' ? realName : '我'}: ${m.content}`).join('\n');
+
+    prompt = `你是一个无感情的客观记忆提取模块。请根据以下对话记录，撰写一份客观的剧情摘要。
 【核心要求】：
 1. 格式绝对纯净：直接输出正文段落。绝对禁止输出任何“档案编号”、“记录对象”、“标题”、“冒号前缀”或格式化的表单，不要列点。
 2. 视角与称呼：请以第一人称（即“我”）进行记录。指代对方时，必须全程使用对方的真实名字【${realName}】进行叙述！绝对禁止在记录中使用“用户”、“男孩”、“女孩”、“他”、“她”等代词！
@@ -26156,6 +26183,7 @@ let chatText = msgsToSummarize.map(m => `${m.role === 'user' ? realName : '我'}
 附加自定义提取侧重点：${memSettings.customPrompt || '无'}
 以下是近期对话记录：
 ${chatText}`;
+}
 
     try {
         const endpoint = apiUrl.replace(/\/+$/, '') + (apiUrl.includes('/v1') ? '/chat/completions' : '/v1/chat/completions');
@@ -26304,20 +26332,37 @@ window.renderCybStickerUI = async function(accountId, npcId, tab) {
         if (stickersDB.length === 0) {
             contentHtml = `<div style="text-align:center; padding:20px 0; opacity:0.5; font-weight:900; font-size:12px;">还没有表情包，请点击上方「管理」添加。</div>`;
         } else {
-            contentHtml = `<div style="display:flex; flex-direction:column; gap:16px;">`;
-            stickersDB.forEach((cat, cIdx) => {
-                contentHtml += `<div style="font-size:12px; font-weight:900; color:var(--text-main); border-bottom:1px dashed rgba(0,0,0,0.1); padding-bottom:4px;">${cat.category} ${cat.aiCanUse ? '<span style="font-size:9px; color:var(--color-pink); border:1px solid var(--color-pink); padding:1px 4px; border-radius:4px;">AI可用</span>' : ''}</div>`;
-                contentHtml += `<div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px;">`;
-                cat.items.forEach(item => {
-                    contentHtml += `
-                        <div style="cursor:pointer; text-align:center; min-width:0; overflow:hidden;" onclick="sendCybSticker('${accountId}', '${npcId}', '${item.name.replace(/'/g, "\\'")}', '${item.url.replace(/'/g, "\\'")}')">
-    <div style="width:100%; aspect-ratio:1/1; background-image:url(${item.url}); background-size:contain; background-repeat:no-repeat; background-position:center; border-radius:8px; border:1.5px solid var(--line-color); background-color:var(--neo-bg);"></div>
-    <div style="width:100%; font-size:10px; font-weight:900; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.name}</div>
+            // 初始化当前选中的分类序号
+            window.cybCurrentStickerCat = window.cybCurrentStickerCat || 0;
+            if (window.cybCurrentStickerCat >= stickersDB.length) window.cybCurrentStickerCat = 0;
+            
+            // 顶部横向滚动的分类 Tab 栏 (你想要的左右滑动分组)
+            let catTabsHtml = `<div style="display:flex; overflow-x:auto; gap:8px; padding-bottom:10px; margin-bottom:12px; border-bottom:1px solid rgba(0,0,0,0.1); scrollbar-width:none; -webkit-overflow-scrolling: touch;">`;
+            stickersDB.forEach((cat, i) => {
+                let isActive = window.cybCurrentStickerCat === i;
+let isAiUse = cat.allowedChats ? (cat.allowedChats.includes(accountId + '_' + npcId) || cat.allowedChats.includes('ALL_MIGRATED')) : cat.aiCanUse;
+catTabsHtml += `<div onclick="window.cybCurrentStickerCat=${i}; renderCybStickerUI('${accountId}', '${npcId}', 'send');" style="flex-shrink:0; padding:6px 12px; border-radius:12px; font-size:12px; font-weight:900; cursor:pointer; background:${isActive?'var(--color-yellow)':'var(--bg-color)'}; border:2px solid ${isActive?'var(--line-color)':'transparent'}; box-shadow:${isActive?'2px 2px 0 var(--line-color)':'none'}; transition:0.2s;">
+    ${cat.category} ${isAiUse ? '<span style="font-size:9px; color:var(--color-pink); border:1px solid var(--color-pink); padding:0px 3px; border-radius:4px; margin-left:4px;">AI用</span>' : ''}
 </div>`;
-                });
-                contentHtml += `</div>`;
             });
-            contentHtml += `</div>`;
+            catTabsHtml += `</div>`;
+
+            // 下方的表情包网格 (只显示当前选中的分类)
+            let curCat = stickersDB[window.cybCurrentStickerCat];
+            let gridHtml = '';
+            if (curCat && curCat.items) {
+                gridHtml = `<div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:10px;">`;
+                curCat.items.forEach(item => {
+                    gridHtml += `
+                        <div style="cursor:pointer; text-align:center; min-width:0; overflow:hidden;" onclick="sendCybSticker('${accountId}', '${npcId}', '${item.name.replace(/'/g, "\\'")}', '${item.url.replace(/'/g, "\\'")}')">
+                            <div style="width:100%; aspect-ratio:1/1; background-image:url(${item.url}); background-size:contain; background-repeat:no-repeat; background-position:center; border-radius:8px; border:1.5px solid var(--line-color); background-color:var(--neo-bg); box-shadow: 2px 2px 0 rgba(0,0,0,0.1);"></div>
+                            <div style="width:100%; font-size:10px; font-weight:900; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text-main);">${item.name}</div>
+                        </div>`;
+                });
+                gridHtml += `</div>`;
+            }
+
+            contentHtml = catTabsHtml + gridHtml;
         }
     } else {
         contentHtml = `
@@ -26337,7 +26382,7 @@ window.renderCybStickerUI = async function(accountId, npcId, tab) {
                         <div style="font-size:12px; font-weight:900;">${cat.category} <span style="font-size:9px; opacity:0.6;">(${cat.items.length}张)</span></div>
                         <div style="display:flex; align-items:center; gap:6px;">
                             <label style="display:flex; align-items:center; gap:4px; font-size:10px; font-weight:900; cursor:pointer;">
-                                <input type="checkbox" style="accent-color:var(--color-pink);" ${cat.aiCanUse ? 'checked' : ''} onchange="toggleCybStickerAiUse(${i}, this.checked)"> AI用
+                                <input type="checkbox" style="accent-color:var(--color-pink);" ${ (cat.allowedChats ? (cat.allowedChats.includes(accountId+'_'+npcId) || cat.allowedChats.includes('ALL_MIGRATED')) : cat.aiCanUse) ? 'checked' : '' } onchange="toggleCybStickerAiUse('${accountId}', '${npcId}', ${i}, this.checked)"> TA可用
                             </label>
                             <button class="diary-mini-btn danger" style="padding:2px 6px; font-size:10px;" onclick="deleteCybStickerCat('${accountId}', '${npcId}', ${i})">删除</button>
                         </div>
@@ -26387,7 +26432,8 @@ window.saveCybStickerCat = async function(accountId, npcId) {
     if (items.length === 0) return alert("解析失败，请确保格式是：名字:链接");
 
     let stickersDB = await getDB('cyb_stickers', []);
-    stickersDB.push({ category: catName, aiCanUse: aiUse, items: items });
+    let allowedChats = aiUse ? [accountId + '_' + npcId] : [];
+stickersDB.push({ category: catName, aiCanUse: false, allowedChats: allowedChats, items: items });
     await setDB('cyb_stickers', stickersDB);
     
     uiAlert("表情包导入成功！");
@@ -26395,10 +26441,22 @@ window.saveCybStickerCat = async function(accountId, npcId) {
 };
 
 // 处理是否允许AI使用开关
-window.toggleCybStickerAiUse = async function(index, isChecked) {
+window.toggleCybStickerAiUse = async function(accountId, npcId, index, isChecked) {
     let stickersDB = await getDB('cyb_stickers', []);
     if (stickersDB[index]) {
-        stickersDB[index].aiCanUse = isChecked;
+        let chatKey = accountId + '_' + npcId;
+        if (!stickersDB[index].allowedChats) {
+            stickersDB[index].allowedChats = stickersDB[index].aiCanUse ? ['ALL_MIGRATED'] : [];
+        }
+        
+        if (isChecked) {
+            if (!stickersDB[index].allowedChats.includes(chatKey)) {
+                stickersDB[index].allowedChats.push(chatKey);
+            }
+        } else {
+            stickersDB[index].allowedChats = stickersDB[index].allowedChats.filter(k => k !== chatKey && k !== 'ALL_MIGRATED');
+            stickersDB[index].aiCanUse = false; // 清除旧的全局标记
+        }
         await setDB('cyb_stickers', stickersDB);
     }
 };
@@ -26641,6 +26699,16 @@ window.receiveCybGroupChatMsg = async function(accountId, groupId, groupInfo, my
     let beforeCmds = activeCommands.filter(c => c.position === 'before').map(c => c.text).join('\n');
     let afterCmds = activeCommands.filter(c => c.position !== 'before').map(c => c.text).join('\n');
 
+let stickersDB = await getDB('cyb_stickers', []);
+let allowedStickers = stickersDB.filter(c => c.allowedChats ? (c.allowedChats.includes(accountId + '_' + groupId) || c.allowedChats.includes('ALL_MIGRATED')) : c.aiCanUse);
+let stickerPrompt = "";
+if (allowedStickers.length > 0) {
+    stickerPrompt = `\n【表情包权限】：群成员可以发送表情包！必须使用隐藏标记 [[STICKER:表情包名字:图片URL]] 单独占一个气泡。表情包库如下（必须精准复制对应的URL）：\n`;
+    allowedStickers.forEach(cat => {
+        stickerPrompt += `[分类：${cat.category}] ` + cat.items.map(s => `${s.name}(${s.url})`).join(', ') + "\n";
+    });
+}
+
     let ex1 = memberDetails[0] || {id: "npc_1", name: "群成员A"};
     let ex2 = memberDetails.length > 1 ? memberDetails[1] : ex1;
 
@@ -26724,6 +26792,7 @@ ${aiMgmtPrompt}
 【群内有以下角色(NPC)】：
 ${memberDetails.map(m => `- ID: ${m.id} | 名字: ${m.name} | 设定: ${m.bio}`).join('\n')}
 ${xMemoryPrompt}
+${stickerPrompt}
 
 【你的任务与身份】：
 正在和你们聊天的用户终端名字叫：${me.name}，表面设定：${me.bio}。
@@ -26745,6 +26814,8 @@ ${specificUser ? `【极其重要：用户的真实私密设定/方案】：用�
 绝对不要使用 JSON！严格遵守纯文本格式输出：
 - 每一个独立的气泡之间必须用 === 分隔。
 - 每一个气泡的第一行必须是你指定的发言人的名字，用中括号括起来，例如：[${ex1.name}]。
+- 【绝对禁止】输出任何时间戳（如 [5月7日 16:22]）！【绝对禁止】复读上面已有的聊天记录！只输出你们接下来的新对话！
+- 【绝对禁止】在人名后面加冒号（绝对不要写成 ${ex1.name}: ）！
 - 如果角色设定使用【标准普通话/简体中文】，直接写纯中文回复：
 [${ex1.name}]
 刚看到消息。
@@ -26862,13 +26933,24 @@ if (titleMatch) {
     }
     raw = raw.replace(/\[\[TITLE:.*?:.*?]]/g, '').trim();
 }
-raw = raw.replace(/\[\[STICKER:(.*?):(http.*?)]]/g, '[表情包] $1\n$2');
+// 强力兜底：就算AI漏写了URL或者乱写，也能把它转换成安全的文字，避免暴露代码
+raw = raw.replace(/\[\[STICKER:(.*?):(.*?)]]/g, function(match, p1, p2) {
+    if (p2 && (p2.startsWith('http') || p2.startsWith('data:'))) {
+        return `[表情包] ${p1}\n${p2}`;
+    } else {
+        return `（发送了表情包：${p2 || p1}）`;
+    }
+});
+
+// 强力清除 AI 智障复读的时间戳 (比如 [5月7日 16:22])
+raw = raw.replace(/\[\d{1,2}月\d{1,2}日\s+\d{1,2}:\d{2}\]\s*/g, '');
 
 // 容错：智能提取群成员名字，精准切开气泡
 let memNames = memberDetails.map(m => m.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
 if (memNames.length > 0) {
     let namePattern = memNames.join('|');
-    let splitRegex = new RegExp(`\\n\\s*(?=\\[(${namePattern})\\]|(${namePattern})\\s*[:：])`, 'gi');
+    // 如果碰到了 "人名:" 或者 "[人名]" 前面甚至没有换行，强行劈开
+    let splitRegex = new RegExp(`(?=\\[(${namePattern})\\]|(${namePattern})\\s*[:：])`, 'gi');
     raw = raw.replace(splitRegex, '\n===\n');
 }
 // 兜底容错：如果AI忘记打分隔符，但带了 [名字] 标签
