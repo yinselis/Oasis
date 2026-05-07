@@ -22038,9 +22038,9 @@ let allSettings = await getDB('cyb_chat_settings', {});
 let allowedStickers = stickersDB.filter(c => c.allowedChats ? (c.allowedChats.includes(accountId + '_' + npcId) || c.allowedChats.includes('ALL_MIGRATED')) : c.aiCanUse);
 let stickerPrompt = "";
 if (allowedStickers.length > 0) {
-    stickerPrompt = `\n【表情包权限】：群成员可以发送表情包！必须使用隐藏标记 [[STICKER:表情包名字:图片URL]] 单独占一个气泡。表情包库如下（必须精准复制对应的URL）：\n`;
+    stickerPrompt = `\n【表情包权限】：你可以发送表情包！只需使用隐藏标记 [[STICKER:表情包名字]] 单独占一个气泡即可。当前可用的表情包名字如下：\n`;
     allowedStickers.forEach(cat => {
-        stickerPrompt += `[分类：${cat.category}] ` + cat.items.map(s => `${s.name}(${s.url})`).join(', ') + "\n";
+        stickerPrompt += `[分类：${cat.category}] ` + cat.items.map(s => s.name).join(', ') + "\n";
     });
 }
 
@@ -22265,7 +22265,24 @@ if (raw.includes('[THINKING_END]')) {
 raw = raw.replace(/\[\d{1,2}月\d{1,2}日.*?\]\s*/g, ''); // 强力清除AI模仿的时间戳
                 raw = raw.replace(/\[\[REDPACKET:([\d\.]+):(.*?)\]\]/g, '[红包] $1\n$2');
                 raw = raw.replace(/\[\[LOCATION:(.*?)\]\]/g, '[定位] $1');
-                raw = raw.replace(/\[\[STICKER:(.*?):(http.*?)\]\]/g, '[表情包] $1\n$2');
+                raw = raw.replace(/\[\[STICKER:(.*?)(?::.*?)?\]\]/g, (match, p1) => {
+    let sName = p1.trim();
+    // 剥离 AI 擅自加的斜杠、破折号或冒号前缀，提取真实的表情包名字
+    let cleanName = sName.split(/[\/\-：:]/).pop().trim();
+    
+    let sUrl = '';
+    let realName = sName;
+    for (let cat of allowedStickers) {
+        // 模糊匹配：只要剔除前缀后名字一样，或者 AI 发的名字里包含了真实名字，就算找对人了
+        let found = cat.items.find(i => i.name === cleanName || sName.includes(i.name) || i.name.includes(cleanName));
+        if (found) { 
+            sUrl = found.url; 
+            realName = found.name; 
+            break; 
+        }
+    }
+    return sUrl ? `[表情包] ${realName}\n${sUrl}` : `（发送了表情包：${sName}）`;
+});
 
                 // ---- 处理头像、名片修改代码（保持原版不变） ----
                 let changeProfileMatch = raw.match(/\[\[CHANGE_PROFILE:(.*?):([\s\S]*?)\]\]/);
@@ -22572,9 +22589,20 @@ let contactToken = (contactsDbToken[accountId] || []).find(c => c.id === npcId) 
 let accountsToken = await getDB('cyb_accounts', []);
 let meToken = accountsToken.find(a => a.id === accountId) || { bio: '' };
 
+// --- 新增：如果是群聊，把所有群成员的设定字数也算进去 ---
+let groupMembersBioLen = 0;
+if (contactToken.isGroup && contactToken.members) {
+    let aiProfilesToken = await getDB('ai_profiles', []);
+    contactToken.members.forEach(mId => {
+        let realId = parseInt(mId.replace('cyb_npc_', ''));
+        let profile = aiProfilesToken.find(p => p.id === realId);
+        if (profile && profile.bio) groupMembersBioLen += profile.bio.length;
+    });
+}
+
 // 基础Prompt字数(大约800字) + 双方人设 + 记忆 + 指令 + 聊天上下文
 let historyTextLen = textOnlyHistory.reduce((sum, m) => sum + (m.content ? m.content.length : 0), 0);
-let totalTextLength = 800 + (contactToken.bio.length || 0) + (meToken.bio.length || 0) + memText.length + cmdText.length + historyTextLen;
+let totalTextLength = 800 + (contactToken.bio.length || 0) + groupMembersBioLen + (meToken.bio.length || 0) + memText.length + cmdText.length + historyTextLen;
 
 let estimatedTokens = Math.floor(totalTextLength * 1.5) + (imgCount * 250);
 
@@ -26703,9 +26731,9 @@ let stickersDB = await getDB('cyb_stickers', []);
 let allowedStickers = stickersDB.filter(c => c.allowedChats ? (c.allowedChats.includes(accountId + '_' + groupId) || c.allowedChats.includes('ALL_MIGRATED')) : c.aiCanUse);
 let stickerPrompt = "";
 if (allowedStickers.length > 0) {
-    stickerPrompt = `\n【表情包权限】：群成员可以发送表情包！必须使用隐藏标记 [[STICKER:表情包名字:图片URL]] 单独占一个气泡。表情包库如下（必须精准复制对应的URL）：\n`;
+    stickerPrompt = `\n【表情包权限】：你可以发送表情包！只需使用隐藏标记 [[STICKER:表情包名字]] 单独占一个气泡即可。当前可用的表情包名字如下：\n`;
     allowedStickers.forEach(cat => {
-        stickerPrompt += `[分类：${cat.category}] ` + cat.items.map(s => `${s.name}(${s.url})`).join(', ') + "\n";
+        stickerPrompt += `[分类：${cat.category}] ` + cat.items.map(s => s.name).join(', ') + "\n";
     });
 }
 
@@ -26933,13 +26961,23 @@ if (titleMatch) {
     }
     raw = raw.replace(/\[\[TITLE:.*?:.*?]]/g, '').trim();
 }
-// 强力兜底：就算AI漏写了URL或者乱写，也能把它转换成安全的文字，避免暴露代码
-raw = raw.replace(/\[\[STICKER:(.*?):(.*?)]]/g, function(match, p1, p2) {
-    if (p2 && (p2.startsWith('http') || p2.startsWith('data:'))) {
-        return `[表情包] ${p1}\n${p2}`;
-    } else {
-        return `（发送了表情包：${p2 || p1}）`;
+raw = raw.replace(/\[\[STICKER:(.*?)(?::.*?)?\]\]/g, (match, p1) => {
+    let sName = p1.trim();
+    // 剥离 AI 擅自加的斜杠、破折号或冒号前缀，提取真实的表情包名字
+    let cleanName = sName.split(/[\/\-：:]/).pop().trim();
+    
+    let sUrl = '';
+    let realName = sName;
+    for (let cat of allowedStickers) {
+        // 模糊匹配：只要剔除前缀后名字一样，或者 AI 发的名字里包含了真实名字，就算找对人了
+        let found = cat.items.find(i => i.name === cleanName || sName.includes(i.name) || i.name.includes(cleanName));
+        if (found) { 
+            sUrl = found.url; 
+            realName = found.name; 
+            break; 
+        }
     }
+    return sUrl ? `[表情包] ${realName}\n${sUrl}` : `（发送了表情包：${sName}）`;
 });
 
 // 强力清除 AI 智障复读的时间戳 (比如 [5月7日 16:22])
