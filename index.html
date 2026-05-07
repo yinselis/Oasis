@@ -3468,6 +3468,26 @@ if(window.applyCustomIconsStyle) window.applyCustomIconsStyle(customAppIcons);
 
     }, 500); 
 }
+if (!localStorage.getItem('updateNotice_SubApi')) {
+    const updateBubble = document.createElement('div');
+    updateBubble.id = 'updateNoticeBubble';
+    updateBubble.style.cssText = 'position:fixed; top: calc(20px + env(safe-area-inset-top)); right: 16px; background: var(--color-yellow); border: 2.5px solid var(--line-color); border-radius: 16px; padding: 16px; box-shadow: 4px 4px 0 var(--line-color); z-index: 9999999; width: 260px; animation: slideUp 0.5s ease-out;';
+    updateBubble.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <div style="font-size:15px; font-weight:900; color:#e74c3c;">📢 系统更新提示</div>
+            <div onclick="this.parentElement.parentElement.remove(); localStorage.setItem('updateNotice_SubApi', '1');" style="width:24px; height:24px; background:var(--bg-color); border:2px solid var(--line-color); border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+                <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:#111;fill:none;stroke-width:3;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </div>
+        </div>
+        <div style="font-size:13px; font-weight:bold; line-height:1.6; color:var(--text-main); margin-bottom:12px;">
+            1. 自动记忆有新增<br>
+            2. 设置内新增了<span style="color:var(--color-pink); font-weight:900;">【一键关闭情报提取】</span>的开关。<br>
+            <span style="font-size:11px; opacity:0.7;">(关闭后“TA眼里的我”功能将休眠，彻底不再偷跑消耗 Token！)推荐使用便宜模型，比如gemini的快速</span>
+        </div>
+        <button class="diary-mini-btn" style="width:100%; background:var(--bg-color); color:var(--text-main); padding:8px;" onclick="this.parentElement.remove(); localStorage.setItem('updateNotice_SubApi', '1');">我知道了</button>
+    `;
+    document.body.appendChild(updateBubble);
+}
     bootSystem();
 window.toggleMusicFabExpand = function() {
     if (window._isMusicFabDragging) return;
@@ -4802,6 +4822,13 @@ async function editProfile(type, id = null) {
                         <input type="file" id="profileCoverUpload" style="display:none;" accept="image/*" onchange="handleProfileCoverUpload(event)">
                         <div id="profileCoverStatus" style="font-size:11px; font-weight:bold; color:var(--color-pink); text-align:center; display:none;"></div>
                     </div>
+                    ${type === 'user' ? `
+                    <div class="profile-edit-item" style="flex-direction: column; align-items: stretch; gap: 8px;">
+                        <span class="profile-edit-label" style="width:100%; color:var(--color-blue); opacity:1;">动态情报 / 过往经历</span>
+                        <div style="font-size:11px; font-weight:bold; opacity:0.6; margin-bottom:4px;">存放从聊天中同步过来的生活习惯、学习进展、经历等。TA会随时记住这些。</div>
+                        <textarea id="userDynamicIntelText" class="form-textarea" style="min-height: 120px; resize: none; background: rgba(0,0,0,0.03); padding: 12px; border-radius: 12px; border: 2px dashed rgba(0,0,0,0.1); font-size:13px; line-height:1.6;" placeholder="例如：\n- 最近在准备考研\n- 每天晚上11点睡觉\n- 以前学过三年画画">${profile ? (profile.dynamicIntel || '') : ''}</textarea>
+                    </div>
+                    ` : ''}
                     <!-- 新增：用户的个人作息表及同步开关 -->
                     ${type === 'user' ? `
                     <div class="profile-edit-item" style="flex-direction: column; align-items: stretch; gap: 8px;">
@@ -4881,6 +4908,7 @@ async function saveProfile(type, id) {
             if (type === 'user') {
                 profile.schedule = document.getElementById('userScheduleText').value.trim();
                 profile.syncSchedule = document.getElementById('userSyncSchedule').checked;
+                profile.dynamicIntel = document.getElementById('userDynamicIntelText').value.trim(); // <--- 新增这行
             }
             // 同步更新已经存在于终端好友列表的资料
             if (type === 'ai') {
@@ -4909,7 +4937,8 @@ async function saveProfile(type, id) {
             coverB64: finalCoverB64,
             hideDotPattern: hideDots,
             schedule: type === 'user' ? document.getElementById('userScheduleText').value.trim() : "",
-            syncSchedule: type === 'user' ? document.getElementById('userSyncSchedule').checked : false
+            syncSchedule: type === 'user' ? document.getElementById('userSyncSchedule').checked : false,
+            dynamicIntel: type === 'user' ? document.getElementById('userDynamicIntelText').value.trim() : "" // <--- 新增这行
         });
     }
     
@@ -5261,6 +5290,10 @@ const playbackMode = await getDB('radioPlaybackMode', 'sequence');
         const apiKey = await getDB('apiKey', '');
         const aiModel = await getDB('aiModel', '');
         const aiTemp = await getDB('aiTemperature', 0.8);
+        const subApiUrl = await getDB('subApiUrl', '');
+        const subApiKey = await getDB('subApiKey', '');
+        const subAiModel = await getDB('subAiModel', '');
+        const isSubApiEnabled = await getDB('enableSubApiFeatures', true);
 const bgImgUrlVal = await getDB('bgImageUrl', '');
         const bgImgB64Val = await getDB('bgImageBase64', '');
         const imgQuality = await getDB('imageCompressionQuality', 0.8);
@@ -5387,6 +5420,38 @@ const bgImgUrlVal = await getDB('bgImageUrl', '');
     <div id="tempSettingArea" style="display:none; margin-top: 12px; border-top: 2px dashed rgba(0,0,0,0.1); padding-top: 12px;">
         <div style="font-size: 12px; font-weight: bold; opacity: 0.6; margin-bottom: 16px; line-height: 1.5;">决定AI回复的随机性和发散程度。数值越高思维越跳跃，越低越严谨稳定。推荐 0.7 - 1.0 之间。</div>
         <input type="range" id="cfgAiTemp" min="0.0" max="2.0" step="0.1" value="${aiTemp}" style="width: 100%; accent-color: var(--line-color);" oninput="document.getElementById('tempDisplay').innerText = this.value">
+    </div>
+</div>
+            <div style="background: var(--bg-color); border: 2px dashed var(--line-color); padding: 16px; border-radius: 16px; margin-bottom: 20px;">
+    <div style="font-size: 15px; font-weight: 900; margin-bottom: 8px;">后台副 API (专供自动总结/偏好提取)</div>
+    <div style="font-size: 11px; font-weight: bold; opacity: 0.6; margin-bottom: 16px; line-height: 1.5;">配置便宜的模型处理后台繁杂计算。留空则默认使用主API。</div>
+    
+    <div class="form-group">
+        <input type="text" class="form-input" id="cfgSubApiUrl" value="${subApiUrl}" placeholder="副 API URL (选填)" style="font-size:13px; padding: 12px;">
+    </div>
+    <div class="form-group" style="margin-bottom: 12px;">
+        <input type="password" class="form-input" id="cfgSubApiKey" value="${subApiKey}" placeholder="副 API Key (选填)" style="font-size:13px; padding: 12px;">
+    </div>
+    
+    <div class="form-group" style="margin-bottom: 0;">
+        <div style="display: flex; gap: 8px;">
+            <input type="text" class="form-input" id="cfgSubAiModel" value="${subAiModel}" placeholder="副 模型名 (选填)" style="flex: 1; font-size:13px; padding: 12px;">
+            <button class="form-btn" id="fetchSubModelsBtn" style="background: var(--color-blue); padding: 0 16px; font-size: 13px;" onclick="fetchSubModels()">拉取</button>
+        </div>
+        <select id="subModelSelect" class="form-select" style="display:none; margin-top: 10px; font-size: 13px;" onchange="document.getElementById('cfgSubAiModel').value=this.value"></select>
+        <div id="fetchSubModelMsg" style="font-size: 11px; font-weight: bold; margin-top: 6px;"></div>
+    </div>
+    
+    <!-- 这里是新加的控制开关 -->
+    <div style="margin-top: 16px; border-top: 1px dashed rgba(0,0,0,0.1); padding-top: 12px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <div style="font-size: 13px; font-weight: 900;">开启后台情报提取 (TA眼里的我)</div>
+            <div style="font-size: 11px; font-weight: bold; opacity: 0.6; margin-top: 4px;">关闭后彻底停止静默提取，绝不消耗任何 Token</div>
+        </div>
+        <label class="switch" style="transform:scale(0.7); margin:0;">
+            <input type="checkbox" id="cfgEnableSubApi" ${isSubApiEnabled ? 'checked' : ''}>
+            <span class="slider-btn"></span>
+        </label>
     </div>
 </div>
             <div style="display:flex; flex-direction:column; gap:12px;">
@@ -6204,12 +6269,71 @@ if (actionArea) {
         }
     }
 
+    async function fetchSubModels() {
+        const apiUrl = document.getElementById('cfgSubApiUrl').value.trim();
+        const apiKey = document.getElementById('cfgSubApiKey').value.trim();
+        const msg = document.getElementById('fetchSubModelMsg');
+        const select = document.getElementById('subModelSelect');
+        
+        if(!apiUrl || !apiKey) {
+            msg.innerText = "⚠️ 请先填写副 API URL 和 Key";
+            msg.style.color = "#FF4C4C";
+            return;
+        }
+        
+        const btn = document.getElementById('fetchSubModelsBtn');
+        btn.innerText = "拉取中";
+        btn.disabled = true;
+        msg.innerText = "正在从服务器获取模型列表...";
+        msg.style.color = "var(--text-main)";
+        select.style.display = "none";
+        
+        try {
+            const endpoint = apiUrl.replace(/\/+$/, '') + (apiUrl.includes('/v1') ? '/models' : '/v1/models');
+            const res = await fetch(endpoint, {
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${apiKey}` }
+            });
+            const data = await res.json(); 
+            if(data && data.error) uiAlert("副 API 报错: " + (data.error.message || "未知错误"));
+            
+            if (data.data && Array.isArray(data.data)) {
+                select.innerHTML = '<option value="">-- 请选择拉取到的模型 --</option>';
+                data.data.sort((a,b) => a.id.localeCompare(b.id)).forEach(model => {
+                    const opt = document.createElement('option');
+                    opt.value = model.id;
+                    opt.textContent = model.id;
+                    select.appendChild(opt);
+                });
+                select.style.display = "block";
+                msg.innerText = `✅ 成功获取 ${data.data.length} 个模型！`;
+                msg.style.color = "var(--text-main)";
+            } else {
+                msg.innerText = "⚠️ 无法解析模型列表，请确认接口兼容标准格式。";
+                msg.style.color = "#FF4C4C";
+            }
+        } catch (e) {
+            msg.innerText = "⚠️ 拉取失败，可能是网络错误或跨域限制。";
+            msg.style.color = "#FF4C4C";
+        } finally {
+            btn.innerText = "拉取";
+            btn.disabled = false;
+        }
+    }
+
     async function saveApiSettings() {
         const btn = document.getElementById('saveApiBtn');
         await setDB('apiUrl', document.getElementById('cfgApiUrl').value.trim());
         await setDB('apiKey', document.getElementById('cfgApiKey').value.trim());
         await setDB('aiModel', document.getElementById('cfgAiModel').value.trim());
         await setDB('aiTemperature', parseFloat(document.getElementById('cfgAiTemp').value) || 0.8);
+        
+        // 👇 新增：保存副 API 的数据
+        await setDB('subApiUrl', document.getElementById('cfgSubApiUrl').value.trim());
+        await setDB('subApiKey', document.getElementById('cfgSubApiKey').value.trim());
+        await setDB('subAiModel', document.getElementById('cfgSubAiModel').value.trim());
+        await setDB('enableSubApiFeatures', document.getElementById('cfgEnableSubApi').checked);
+
         btn.innerText = "已保存 ✔";
         setTimeout(() => btn.innerText = "保存网络配置", 1500);
     }
@@ -22084,8 +22208,15 @@ else if (diffHours > 1) timeGapHint = ``; // 1到8小时属于正常聊天间隔
             }
 
                         let memoriesDb = await getDB('cyb_memories', {});
-            let memories = memoriesDb[accountId + '_' + npcId] || [];
+            let memories = memoriesDb[accountId + '_' + npcId] ||[];
             let memoryStr = memories.length > 0 ? "\n【记忆档案】：" + memories.map(m => m.text).join('\n') : '';
+            
+            // 👇 这是新加的情报抓取
+            let prefsDb = await getDB('cyb_user_prefs', {});
+            let userPrefs = prefsDb[accountId + '_' + npcId] || '';
+            if (userPrefs && userPrefs !== '无') {
+                memoryStr += `\n【TA眼里的${realName}(隐性偏好/习惯/设定)】：\n${userPrefs}\n`;
+            }
 
             // === 新增：跨APP拉取短信频道的实时记忆 ===
             let smsLogsDb = await getDB('smsLogs', {});
@@ -22135,6 +22266,7 @@ if (npcId === 'cyb_npc_native_ai') {
 - 我的终端账号名字: ${me.name}
 - 我的个人签名: ${me.bio}
 ${specificUser ? `- 我在你这里的私密备注: ${specificUser.name}\n- 我在你这里的私密印象: ${specificUser.bio}` : ''}
+${specificUser && specificUser.dynamicIntel ? `- 我的生活习惯/过往经历/当前状态: ${specificUser.dynamicIntel}` : ''}
 ${daysKnownStr}
 ${userSchedulePrompt}
 ${currentTimeStr}${timeGapHint}
@@ -22150,6 +22282,7 @@ ${stickerPrompt}
     -   **思考与停顿**：想象一下你打字时的思考过程。这会影响你每句话的长度和内容，以及多条消息之间的关联。
     -   **拒绝"AI味"和"油腻感"**：绝对禁止使用“霸道总裁”、“工业糖精”等网络小说中的刻板词汇。拒绝任何形式的刻意讨好和机械式互动。说话要自然、真诚，符合角色的逻辑。
 3.  **绝对禁止动作描写**：你只能发送**文字消息**。严禁使用 *...* 或 (...) 来描述动作、表情、神态或心理活动。让你的语言本身传递情绪。
+4. 情绪应符合你当前的性格和身份、与用户的关系。
 
 【第四部分：输出格式死命令 (系统级要求，必须严格遵守，否则消息无法解析！)】
 1.  **气泡切分**：本次回复，你必须精确地生成 ${minReply} 到 ${maxReply} 条独立的聊天气泡。每一个独立的气泡之间，必须用 === 作为分隔符。这是机器识别的唯一标记，绝不能省略或用其他符号替代！
@@ -26015,7 +26148,10 @@ window.openCybMemoryBank = async function(accountId, npcId) {
                 </div>
                 <div style="font-size:18px; font-weight:900;">核心记忆库</div>
             </div>
-            <button class="diary-mini-btn danger" style="padding:8px 12px; font-size:13px;" onclick="refineCybMemories('${accountId}', '${npcId}')">精简已有记忆</button>
+            <div style="display:flex; gap:8px;">
+                <button class="diary-mini-btn primary" style="padding:8px 12px; font-size:13px; background:var(--color-pink); color:#111;" onclick="openCybUserPrefModal('${accountId}', '${npcId}')">TA眼里的我</button>
+                <button class="diary-mini-btn danger" style="padding:8px 12px; font-size:13px;" onclick="refineCybMemories('${accountId}', '${npcId}')">精简</button>
+            </div>
         </div>
         
         <div style="padding: 16px 20px 8px; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
@@ -26246,6 +26382,9 @@ ${chatText}`;
             memSettings.lastSummaryIndex = chatList.length;
             await setDB('cyb_memory_settings_' + accountId + '_' + npcId, memSettings);
 
+// 触发并行的偏好情报提取 (静默执行，消耗副API)
+            extractCybUserPreferences(accountId, npcId, chatText, realName, contactSum ? contactSum.name : '对方');
+            
             if(!isAuto) renderCybMemoryCards(accountId, npcId);
         }
     } catch(e) {
@@ -32312,6 +32451,143 @@ window.generateAiSchedule = async function(npcId, aiName) {
     if (btn) {
         btn.innerText = "AI 自动排表";
         btn.disabled = false;
+    }
+};
+
+// ==========================================
+// 动态情报提取与跨档案同步系统 (双轨 API 版)
+// ==========================================
+
+// 后台静默情报提取引擎
+window.extractCybUserPreferences = async function(accountId, npcId, chatText, userName, npcName) {
+// 一键开关：如果关了，直接退出，绝不调用任何 API
+    const isSubApiEnabled = await getDB('enableSubApiFeatures', true);
+    if (!isSubApiEnabled) return;
+    // 优先读取副 API，没有的话就回退使用主 API
+    const apiUrl = await getDB('subApiUrl') || await getDB('apiUrl');
+    const apiKey = await getDB('subApiKey') || await getDB('apiKey');
+    const model = await getDB('subAiModel') || await getDB('aiModel');
+    if (!apiUrl || !apiKey) return;
+
+    let prefsDb = await getDB('cyb_user_prefs', {});
+    let existingPrefs = prefsDb[accountId + '_' + npcId] || '';
+
+    const prompt = `你是一个没有感情的个人情报提取雷达。
+任务：请从下方的聊天记录中，提取出关于用户【${userName}】的以下核心信息：
+1. 生活习惯与日常规律（如作息、饮食习惯等）
+2. 学习/工作进展与近期状态（如正在准备考试、最近在做什么项目）
+3. 提及的过往经历与故事（如以前去过哪里、发生过什么事）
+4. 个人喜好、禁忌与特殊设定
+
+要求：
+1. 若已有旧情报，请将新情报与旧情报合并、去重、梳理，不要遗漏关键设定。
+2. 只要核心干货，用简短的词组或短句罗列，直接输出结果。
+3. 如果聊天里完全没有暴露任何新情报，只需输出“无”即可，绝对不要瞎编！
+
+【已有旧情报】：
+${existingPrefs || '无'}
+
+【最新聊天记录】：
+${chatText}`;
+
+    try {
+        const endpoint = apiUrl.replace(/\/+$/, '') + (apiUrl.includes('/v1') ? '/chat/completions' : '/v1/chat/completions');
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({ model: model, messages: [{ role: 'system', content: prompt }], temperature: 0.3 }) // 温度极低，保持绝对客观
+        });
+        const data = await res.json();
+        if (data.choices && data.choices[0]) {
+            let extracted = data.choices[0].message.content.trim();
+            if (extracted && extracted !== '无') {
+                prefsDb[accountId + '_' + npcId] = extracted;
+                await setDB('cyb_user_prefs', prefsDb);
+            }
+        }
+    } catch(e) {
+        console.log("后台提取情报失败，被防火墙拦截");
+    }
+};
+
+// 打开情报面板
+// 打开情报面板 (全屏沉浸版)
+window.openCybUserPrefModal = async function(accountId, npcId) {
+    let prefsDb = await getDB('cyb_user_prefs', {});
+    let currentPrefs = prefsDb[accountId + '_' + npcId] || '';
+    
+    let userProfiles = await getDB('user_profiles',[]);
+    let profileOptions = userProfiles.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'cybUserPrefModal';
+    overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:var(--bg-color); z-index:9999999; display:flex; flex-direction:column; padding:0; align-items:stretch; animation: slideUp 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);';
+    
+    overlay.innerHTML = `
+        <div style="width:100%; display:flex; align-items:center; justify-content:space-between; padding:calc(16px + env(safe-area-inset-top)) 20px 16px; flex-shrink:0; border-bottom:2px solid var(--line-color); background:var(--neo-bg);">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <div class="x-chat-back-only" onclick="document.getElementById('cybUserPrefModal').remove()" style="width: 36px; height: 36px; background: var(--color-yellow); border: 2px solid var(--line-color); border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 2px 2px 0 var(--line-color);">
+                    <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:var(--text-main);fill:none;stroke-width:3;stroke-linecap:round;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                </div>
+                <div style="font-size:18px; font-weight:900;">TA 眼里的我</div>
+            </div>
+            <button class="diary-mini-btn primary" style="padding:8px 12px; font-size:13px;" onclick="saveCybUserPref('${accountId}', '${npcId}')">保存情报</button>
+        </div>
+
+        <div style="flex:1; overflow-y:auto; padding: 20px; display:flex; flex-direction:column; gap:20px;">
+            <div style="font-size:12px; font-weight:bold; opacity:0.6; line-height:1.6; background: rgba(0,0,0,0.03); padding: 12px; border-radius: 12px; border: 1px dashed rgba(0,0,0,0.1);">
+                这是系统在后台静默收集到的、当前角色 (TA) 对你的偏好、生活习惯与过往经历的认知。你可以手动修改它。
+            </div>
+
+            <div style="display:flex; flex-direction:column; flex:1;">
+                <div style="font-size:14px; font-weight:900; margin-bottom:8px; color:var(--color-pink);">情报档案内容：</div>
+                <textarea id="cybUserPrefText" class="form-textarea" style="flex:1; min-height:200px; font-size:14px; line-height:1.8; padding:16px; background:var(--neo-bg); box-shadow:inset 2px 2px 0 rgba(0,0,0,0.02);">${currentPrefs}</textarea>
+            </div>
+
+            <div style="background:var(--neo-bg); border:2px dashed var(--color-blue); padding:16px; border-radius:16px; box-shadow: 4px 4px 0 var(--line-color); margin-bottom: 20px;">
+                <div style="font-size:14px; font-weight:900; margin-bottom:6px; color:var(--color-blue);">一键同步至我的主档案</div>
+                <div style="font-size:11px; font-weight:bold; opacity:0.6; margin-bottom:12px;">同步后，这部分经历将固化到你选择的个人档案中。</div>
+                <div style="display:flex; gap:10px;">
+                    <select id="cybPrefSyncTarget" class="form-select" style="flex:1; padding:10px; font-size:13px;">
+                        ${profileOptions || '<option value="">暂无主档案</option>'}
+                    </select>
+                    <button class="form-btn" style="background:var(--color-yellow); font-size:13px; padding:0 20px;" onclick="syncCybUserPrefToProfile('${accountId}', '${npcId}')">同步注入</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+};
+
+// 保存修改的情报
+window.saveCybUserPref = async function(accountId, npcId) {
+    const text = document.getElementById('cybUserPrefText').value.trim();
+    let prefsDb = await getDB('cyb_user_prefs', {});
+    prefsDb[accountId + '_' + npcId] = text;
+    await setDB('cyb_user_prefs', prefsDb);
+    document.getElementById('cybUserPrefModal').remove();
+    uiAlert("情报修改已保存，TA下次会注意的。");
+};
+
+// 将情报同步写入到“我的主档案”的签名里
+// 将情报同步写入到“我的主档案”的情报库里
+window.syncCybUserPrefToProfile = async function(accountId, npcId) {
+    const targetProfileId = document.getElementById('cybPrefSyncTarget').value;
+    const prefText = document.getElementById('cybUserPrefText').value.trim();
+    
+    if (!targetProfileId) return uiAlert("请先在【指令集】创建一个【我的档案】哦！");
+    if (!prefText || prefText === '无') return uiAlert("当前没有什么有用的情报可以同步。");
+
+    let userProfiles = await getDB('user_profiles',[]);
+    let profileIndex = userProfiles.findIndex(p => String(p.id) === targetProfileId);
+    
+    if (profileIndex > -1) {
+        let p = userProfiles[profileIndex];
+        // 聪明的追加逻辑
+        p.dynamicIntel = (p.dynamicIntel ? p.dynamicIntel + '\n\n' : '') + `[${new Date().toLocaleDateString()} 同步记录]：\n${prefText}`;
+        await setDB('user_profiles', userProfiles);
+        uiAlert(`成功！情报已注入档案卡【${p.name}】的专属情报区。去指令集看看吧！`);
     }
 };
 </script>
