@@ -3421,7 +3421,20 @@ const customCss = await getDB('customCss', '');
 if(customCss) document.getElementById('custom-widget-css').innerHTML = customCss;
 
 const globalFont = await getDB('globalFont', '');
-if(globalFont) document.getElementById('global-font-style').innerHTML = `@import url('${globalFont}'); body { font-family: 'GlobalFont', 'Helvetica Neue', sans-serif !important; }`;
+if(globalFont) {
+    if(globalFont.includes('@import') || globalFont.includes('{')) {
+        // 如果是完整的 CSS 代码
+        document.getElementById('global-font-style').innerHTML = globalFont;
+    } else if (globalFont.match(/\.(ttf|woff|woff2|otf)/i)) {
+        // 如果是 .ttf 等字体文件直链
+        document.getElementById('global-font-style').innerHTML = `@font-face { font-family: 'GlobalFont'; src: url('${globalFont}'); font-display: swap; } * { font-family: 'GlobalFont', 'Helvetica Neue', sans-serif !important; }`;
+    } else {
+        // 如果是 Google Fonts 等网页直链
+        document.getElementById('global-font-style').innerHTML = `@import url('${globalFont}'); * { font-family: 'GlobalFont', 'Helvetica Neue', sans-serif !important; }`;
+    }
+} else {
+    document.getElementById('global-font-style').innerHTML = '';
+}
 
 const globalCss = await getDB('globalCss', '');
 if(globalCss) document.getElementById('global-css').innerHTML = globalCss;
@@ -27713,6 +27726,14 @@ window.openGlobalAppearanceModal = async function() {
 const fontUrl = await getDB('globalFont', '');
 const customCss = await getDB('globalCss', '');
 const presets = await getDB('globalAppearancePresets', []); // 独立的全局预设库
+const fontPresets = await getDB('globalFontPresets', []);
+window._tempGlobalFontPresets = fontPresets;
+let fontPresetHtmlStr = fontPresets.length > 0 ? fontPresets.map(p => `
+    <div style="background:var(--bg-color); border:2px solid var(--line-color); padding:6px 10px; border-radius:12px; font-size:12px; display:flex; align-items:center; gap:8px;">
+        <span style="cursor:pointer; font-weight:900;" onclick="applyGlobalFontPreset(${p.id})">${p.name}</span>
+        <span style="color:#e74c3c; cursor:pointer; font-weight:900; padding-left:6px; border-left:2px solid rgba(0,0,0,0.1);" onclick="deleteGlobalFontPreset(${p.id})">×</span>
+    </div>
+`).join('') : '<div style="font-size:12px; opacity:0.5; padding:4px;">暂无字体预设，粘贴代码后在下方保存</div>';
     window._tempGlobalPresets = presets;
     const isFlat = await getDB('flatMode', false);
 
@@ -27774,12 +27795,25 @@ overlay.innerHTML = `
             <div style="flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding-right:4px;">
                 
                 <div style="background:var(--neo-bg); border:2px solid var(--line-color); padding:16px; border-radius:16px; box-shadow: 3px 3px 0 var(--line-color); margin-bottom: 16px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                        <div style="font-size:14px; font-weight:900;">1. 全局字体直链</div>
-                        <button class="diary-mini-btn danger" style="padding: 2px 8px; font-size: 11px;" onclick="document.getElementById('globalFontUrl').value=''">恢复默认</button>
-                    </div>
-                    <input type="text" id="globalFontUrl" class="form-input" placeholder="输入外部字体直链 (图床的 .ttf 等)" value="${fontUrl}" style="font-size:13px;">
-                </div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <div style="font-size:14px; font-weight:900;">1. 全局字体 (直链或代码)</div>
+        <button class="diary-mini-btn danger" style="padding: 4px 10px; font-size: 11px;" onclick="document.getElementById('globalFontUrl').value=''">清空</button>
+    </div>
+    
+    <!-- 独立的字体预设库 -->
+    <div style="background:var(--bg-color); padding:12px; border:2px dashed rgba(0,0,0,0.1); border-radius:12px; margin-bottom:12px;">
+        <div style="font-size:13px; font-weight:900; margin-bottom:8px;">我的字体预设库</div>
+        <div id="fontPresetsList" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
+            ${fontPresetHtmlStr}
+        </div>
+        <div style="display:flex; gap:8px;">
+            <input type="text" id="newFontPresetName" class="form-input" style="padding:8px 10px; font-size:13px; flex:1; min-width:0;" placeholder="给这个字体起个名字">
+            <button class="diary-mini-btn primary" style="padding:8px 12px; font-size:13px;" onclick="saveGlobalFontPreset()">存为预设</button>
+        </div>
+    </div>
+
+    <textarea id="globalFontUrl" class="form-textarea" placeholder="输入字体直链 (.ttf)\n或直接粘贴 @import 格式的完整字体 CSS 代码..." style="min-height: 80px; font-size:13px; font-family:monospace;">${fontUrl}</textarea>
+</div>
 
 <div style="background:var(--neo-bg); border:2px solid var(--line-color); padding:16px; border-radius:16px; box-shadow: 3px 3px 0 var(--line-color); margin-bottom: 16px;">
     <div class="switch-wrap" style="box-shadow:none; border:none; padding:0; margin:0;">
@@ -27852,13 +27886,45 @@ overlay.innerHTML = `
     document.body.appendChild(overlay);
 };
 
-// 🖱️ 套用预设 (把字体和CSS一并套入输入框)
+// ====== 独立字体预设系统 ======
+window.applyGlobalFontPreset = function(id) {
+    if (window._tempGlobalFontPresets) {
+        const preset = window._tempGlobalFontPresets.find(p => p.id === id);
+        if (preset) document.getElementById('globalFontUrl').value = preset.code || '';
+    }
+};
+
+window.saveGlobalFontPreset = async function() {
+    const name = document.getElementById('newFontPresetName').value.trim();
+    const code = document.getElementById('globalFontUrl').value.trim();
+    if(!name) return uiAlert('请先给字体预设起个名字！');
+    if(!code) return uiAlert('你还没有填字体链接或代码！');
+    
+    let presets = await getDB('globalFontPresets', []);
+    presets.push({ id: Date.now(), name: name, code: code });
+    await setDB('globalFontPresets', presets);
+    
+    document.getElementById('globalAppearanceModal').remove();
+    openGlobalAppearanceModal(); // 刷新弹窗
+};
+
+window.deleteGlobalFontPreset = async function(id) {
+    if(!confirm('确定要删除这个字体预设吗？')) return;
+    let presets = await getDB('globalFontPresets', []);
+    presets = presets.filter(p => p.id !== id);
+    await setDB('globalFontPresets', presets);
+    
+    document.getElementById('globalAppearanceModal').remove();
+    openGlobalAppearanceModal();
+};
+
+// ====== 解绑原有的主题预设 (不再覆盖字体) ======
 window.applyGlobalPreset = function(id) {
     if (window._tempGlobalPresets) {
         const preset = window._tempGlobalPresets.find(p => p.id === id);
         if (preset) {
             document.getElementById('globalCustomCss').value = preset.css || '';
-            document.getElementById('globalFontUrl').value = preset.font || '';
+            // 解绑：删除了原先覆盖字体的代码
         }
     }
 };
@@ -27877,10 +27943,16 @@ await setDB('customAppIcons', window._tempCustomIcons);
 if(window.applyCustomIconsStyle) window.applyCustomIconsStyle(window._tempCustomIcons);
 
     if(fontUrl) {
-        document.getElementById('global-font-style').innerHTML = `@import url('${fontUrl}'); body { font-family: 'GlobalFont', 'Helvetica Neue', sans-serif !important; }`;
+    if(fontUrl.includes('@import') || fontUrl.includes('{')) {
+        document.getElementById('global-font-style').innerHTML = fontUrl;
+    } else if (fontUrl.match(/\.(ttf|woff|woff2|otf)/i)) {
+        document.getElementById('global-font-style').innerHTML = `@font-face { font-family: 'GlobalFont'; src: url('${fontUrl}'); font-display: swap; } * { font-family: 'GlobalFont', 'Helvetica Neue', sans-serif !important; }`;
     } else {
-        document.getElementById('global-font-style').innerHTML = '';
+        document.getElementById('global-font-style').innerHTML = `@import url('${fontUrl}'); * { font-family: 'GlobalFont', 'Helvetica Neue', sans-serif !important; }`;
     }
+} else {
+    document.getElementById('global-font-style').innerHTML = '';
+}
     
     document.getElementById('global-css').innerHTML = customCss;
 
