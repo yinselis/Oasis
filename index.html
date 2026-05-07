@@ -23061,11 +23061,26 @@ window.submitCybFakeImage = async function(accountId, npcId) {
     });
     
     await setDB('cyb_chats', chatsDb);
-    openCybChatWindow(accountId, npcId);
-    setTimeout(() => {
-        const msgArea = document.getElementById('cybChatMsgsArea');
-        if (msgArea) msgArea.scrollTop = msgArea.scrollHeight;
-    }, 100);
+    
+    // 【修复闪烁】：原地追加HTML气泡，不再刷新全屏
+    const msgArea = document.getElementById('cybChatMsgsArea');
+    if (msgArea) {
+        let accounts = await getDB('cyb_accounts', []);
+        let me = accounts.find(a => a.id === accountId) || { name: '我', avatarB64: '' };
+        let myAvStyle = me.avatarB64 ? `background-image:url(${me.avatarB64}); color:transparent; background-size:cover;` : '';
+        let newMsg = chatsDb[accountId][npcId][chatsDb[accountId][npcId].length - 1];
+        let parsedHtml = parseCybSpecialMsg(newMsg.content, true, 'cyb-user-bubble', newMsg);
+        
+        msgArea.insertAdjacentHTML('beforeend', `
+            <div class="cyb-chat-row user" style="margin-bottom: 12px;">
+                ${parsedHtml}
+                <div class="cyb-avatar-container">
+                    <div style="width:100%; height:100%; border-radius:12px; border:2px solid var(--line-color); ${myAvStyle} background-color:var(--color-blue); display:flex; align-items:center; justify-content:center; font-weight:900; font-size:14px; background-position:center; background-size:cover; pointer-events:none;">${me.avatarB64 ? '' : me.name.charAt(0)}</div>
+                </div>
+            </div>
+        `);
+        msgArea.scrollTop = msgArea.scrollHeight;
+    }
 };
 
 // --- 终端微信风：发送语音 ---
@@ -23118,11 +23133,26 @@ window.submitCybVoice = async function(accountId, npcId) {
     });
     
     await setDB('cyb_chats', chatsDb);
-    openCybChatWindow(accountId, npcId);
-    setTimeout(() => {
-        const msgArea = document.getElementById('cybChatMsgsArea');
-        if (msgArea) msgArea.scrollTop = msgArea.scrollHeight;
-    }, 100);
+    
+    // 【修复闪烁】：原地追加HTML气泡，不再刷新全屏
+    const msgArea = document.getElementById('cybChatMsgsArea');
+    if (msgArea) {
+        let accounts = await getDB('cyb_accounts', []);
+        let me = accounts.find(a => a.id === accountId) || { name: '我', avatarB64: '' };
+        let myAvStyle = me.avatarB64 ? `background-image:url(${me.avatarB64}); color:transparent; background-size:cover;` : '';
+        let newMsg = chatsDb[accountId][npcId][chatsDb[accountId][npcId].length - 1];
+        let parsedHtml = parseCybSpecialMsg(newMsg.content, true, 'cyb-user-bubble', newMsg);
+        
+        msgArea.insertAdjacentHTML('beforeend', `
+            <div class="cyb-chat-row user" style="margin-bottom: 12px;">
+                ${parsedHtml}
+                <div class="cyb-avatar-container">
+                    <div style="width:100%; height:100%; border-radius:12px; border:2px solid var(--line-color); ${myAvStyle} background-color:var(--color-blue); display:flex; align-items:center; justify-content:center; font-weight:900; font-size:14px; background-position:center; background-size:cover; pointer-events:none;">${me.avatarB64 ? '' : me.name.charAt(0)}</div>
+                </div>
+            </div>
+        `);
+        msgArea.scrollTop = msgArea.scrollHeight;
+    }
 };
 
 window.handleCybRealImgUpload = async function(e, accountId, npcId) {
@@ -23151,11 +23181,26 @@ window.handleCybRealImgUpload = async function(e, accountId, npcId) {
     });
     
     await setDB('cyb_chats', chatsDb);
-    openCybChatWindow(accountId, npcId);
-    setTimeout(() => {
-        const msgArea = document.getElementById('cybChatMsgsArea');
-        if (msgArea) msgArea.scrollTop = msgArea.scrollHeight;
-    }, 100);
+    
+    // 【修复闪烁】：原地追加HTML气泡，不再刷新全屏
+    const msgArea = document.getElementById('cybChatMsgsArea');
+    if (msgArea) {
+        let accounts = await getDB('cyb_accounts', []);
+        let me = accounts.find(a => a.id === accountId) || { name: '我', avatarB64: '' };
+        let myAvStyle = me.avatarB64 ? `background-image:url(${me.avatarB64}); color:transparent; background-size:cover;` : '';
+        let newMsg = chatsDb[accountId][npcId][chatsDb[accountId][npcId].length - 1];
+        let parsedHtml = parseCybSpecialMsg(newMsg.content, true, 'cyb-user-bubble', newMsg);
+        
+        msgArea.insertAdjacentHTML('beforeend', `
+            <div class="cyb-chat-row user" style="margin-bottom: 12px;">
+                ${parsedHtml}
+                <div class="cyb-avatar-container">
+                    <div style="width:100%; height:100%; border-radius:12px; border:2px solid var(--line-color); ${myAvStyle} background-color:var(--color-blue); display:flex; align-items:center; justify-content:center; font-weight:900; font-size:14px; background-position:center; background-size:cover; pointer-events:none;">${me.avatarB64 ? '' : me.name.charAt(0)}</div>
+                </div>
+            </div>
+        `);
+        msgArea.scrollTop = msgArea.scrollHeight;
+    }
 };
 
 // --- 赛博终端：长按菜单、删除与多选引擎 ---
@@ -26381,11 +26426,26 @@ window.sendCybSticker = async function(accountId, npcId, name, url) {
     });
     
     await setDB('cyb_chats', chatsDb);
-    openCybChatWindow(accountId, npcId);
-    setTimeout(() => {
-        const msgArea = document.getElementById('cybChatMsgsArea');
-        if (msgArea) msgArea.scrollTop = msgArea.scrollHeight;
-    }, 100);
+    
+    // 【修复闪烁】：原地追加HTML气泡，不再刷新全屏
+    const msgArea = document.getElementById('cybChatMsgsArea');
+    if (msgArea) {
+        let accounts = await getDB('cyb_accounts', []);
+        let me = accounts.find(a => a.id === accountId) || { name: '我', avatarB64: '' };
+        let myAvStyle = me.avatarB64 ? `background-image:url(${me.avatarB64}); color:transparent; background-size:cover;` : '';
+        let newMsg = chatsDb[accountId][npcId][chatsDb[accountId][npcId].length - 1];
+        let parsedHtml = parseCybSpecialMsg(newMsg.content, true, 'cyb-user-bubble', newMsg);
+        
+        msgArea.insertAdjacentHTML('beforeend', `
+            <div class="cyb-chat-row user" style="margin-bottom: 12px;">
+                ${parsedHtml}
+                <div class="cyb-avatar-container">
+                    <div style="width:100%; height:100%; border-radius:12px; border:2px solid var(--line-color); ${myAvStyle} background-color:var(--color-blue); display:flex; align-items:center; justify-content:center; font-weight:900; font-size:14px; background-position:center; background-size:cover; pointer-events:none;">${me.avatarB64 ? '' : me.name.charAt(0)}</div>
+                </div>
+            </div>
+        `);
+        msgArea.scrollTop = msgArea.scrollHeight;
+    }
 };
 
 // --- 终端真实图片全屏预览 ---
