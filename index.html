@@ -22038,7 +22038,7 @@ let allSettings = await getDB('cyb_chat_settings', {});
 let allowedStickers = stickersDB.filter(c => c.allowedChats ? (c.allowedChats.includes(accountId + '_' + npcId) || c.allowedChats.includes('ALL_MIGRATED')) : c.aiCanUse);
 let stickerPrompt = "";
 if (allowedStickers.length > 0) {
-    stickerPrompt = `\n【表情包权限】：你可以发送表情包！只需使用隐藏标记 [[STICKER:表情包名字]] 单独占一个气泡即可。当前可用的表情包名字如下：\n`;
+    stickerPrompt = `\n【表情包权限】：你可以发送表情包！必须且只能使用隐藏标记 [[STICKER:表情包名字]] 单独占一个气泡，绝对禁止使用“(发送了表情包:xxx)”之类的文字描述！当前可用表情包如下：\n`;
     allowedStickers.forEach(cat => {
         stickerPrompt += `[分类：${cat.category}] ` + cat.items.map(s => s.name).join(', ') + "\n";
     });
@@ -22265,7 +22265,10 @@ if (raw.includes('[THINKING_END]')) {
 raw = raw.replace(/\[\d{1,2}月\d{1,2}日.*?\]\s*/g, ''); // 强力清除AI模仿的时间戳
                 raw = raw.replace(/\[\[REDPACKET:([\d\.]+):(.*?)\]\]/g, '[红包] $1\n$2');
                 raw = raw.replace(/\[\[LOCATION:(.*?)\]\]/g, '[定位] $1');
-                raw = raw.replace(/\[\[STICKER:(.*?)(?::.*?)?\]\]/g, (match, p1) => {
+                // 强制纠正 Gemini 发错的表情包格式
+raw = raw.replace(/[\(（]【?发送了?表情包[:：]?\s*(.*?)】?[\)）]/g, '[[STICKER:$1]]');
+raw = raw.replace(/\[表情包[:：]?\s*(.*?)\]/g, '[[STICKER:$1]]');
+raw = raw.replace(/\[\[STICKER:(.*?)(?::.*?)?\]\]/g, (match, p1) => {
     let sName = p1.trim();
     // 剥离 AI 擅自加的斜杠、破折号或冒号前缀，提取真实的表情包名字
     let cleanName = sName.split(/[\/\-：:]/).pop().trim();
@@ -26731,7 +26734,7 @@ let stickersDB = await getDB('cyb_stickers', []);
 let allowedStickers = stickersDB.filter(c => c.allowedChats ? (c.allowedChats.includes(accountId + '_' + groupId) || c.allowedChats.includes('ALL_MIGRATED')) : c.aiCanUse);
 let stickerPrompt = "";
 if (allowedStickers.length > 0) {
-    stickerPrompt = `\n【表情包权限】：你可以发送表情包！只需使用隐藏标记 [[STICKER:表情包名字]] 单独占一个气泡即可。当前可用的表情包名字如下：\n`;
+    stickerPrompt = `\n【表情包权限】：你可以发送表情包！必须且只能使用隐藏标记 [[STICKER:表情包名字]] 单独占一个气泡，当前可用表情包如下：\n`;
     allowedStickers.forEach(cat => {
         stickerPrompt += `[分类：${cat.category}] ` + cat.items.map(s => s.name).join(', ') + "\n";
     });
@@ -26961,6 +26964,9 @@ if (titleMatch) {
     }
     raw = raw.replace(/\[\[TITLE:.*?:.*?]]/g, '').trim();
 }
+// 强制纠正 Gemini 发错的表情包格式
+raw = raw.replace(/[\(（]【?发送了?表情包[:：]?\s*(.*?)】?[\)）]/g, '[[STICKER:$1]]');
+raw = raw.replace(/\[表情包[:：]?\s*(.*?)\]/g, '[[STICKER:$1]]');
 raw = raw.replace(/\[\[STICKER:(.*?)(?::.*?)?\]\]/g, (match, p1) => {
     let sName = p1.trim();
     // 剥离 AI 擅自加的斜杠、破折号或冒号前缀，提取真实的表情包名字
