@@ -27695,31 +27695,36 @@ window.openBlindBox = async function() {
 // 全局外观定制引擎与紧急救援系统 (V2 独立预设版)
 // ===================================================
 
-// 🚨 紧急救援系统：连点屏幕 6 次强制清空 CSS，防白屏死机
+// 🚨 紧急救援系统：连点屏幕 10 次强制清空所有 CSS，防白屏死机
 let _emergencyTapCount = 0;
 let _emergencyTapTimer = null;
 document.addEventListener('touchstart', async (e) => {
     _emergencyTapCount++;
     if (_emergencyTapCount === 1) {
-        // 延长时间到 3000 毫秒（3秒）
-        _emergencyTapTimer = setTimeout(() => { _emergencyTapCount = 0; }, 3000); 
+        // 设为 2 秒内（2000毫秒）
+        _emergencyTapTimer = setTimeout(() => { _emergencyTapCount = 0; }, 2000); 
     }
-    // 降低触发条件到 6 次
-    if (_emergencyTapCount >= 6) {
-        _emergencyTapCount = 0;
-        clearTimeout(_emergencyTapTimer);
-        // ... 下面不用动 ...
+    // 必须连续点击 10 次才触发，彻底杜绝打字误触
+    if (_emergencyTapCount >= 10) {
         _emergencyTapCount = 0;
         clearTimeout(_emergencyTapTimer);
         
         // 增加确认弹窗，防误触
         if (await uiConfirm("🚨 触发紧急救援机制！\n\n你刚刚连续高频点击了屏幕。请问界面是否卡死，需要清空自定义外观(CSS/字体)并恢复默认吗？\n\n(如果只是误触，请点击取消)")) {
+            
+            // 1. 清除气泡小组件样式
             await setDB('customCss', '');
-            await setDB('customFont', ''); // 连字体一起干掉防止字体文件损坏卡死
+            await setDB('customFont', ''); 
             document.getElementById('custom-widget-css').innerHTML = '';
             document.getElementById('custom-font-style').innerHTML = '';
             
-            uiAlert('🚑 紧急救援已执行！\n\n外观已恢复默认，安全警报解除。');
+            // 2. 【关键修复】彻底清除全局外观样式！
+            await setDB('globalCss', '');
+            await setDB('globalFont', ''); 
+            document.getElementById('global-css').innerHTML = '';
+            document.getElementById('global-font-style').innerHTML = '';
+            
+            uiAlert('🚑 紧急救援已执行！\n\n所有外观已恢复默认，安全警报解除。');
         }
     }
 }, {passive: true});
